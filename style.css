@@ -379,11 +379,11 @@ body {
 }
 
 .embed-iframe.threads-embed {
-  height: 680px; /* generous default, auto-resized by postMessage */
+  height: 1000px; /* generous default for long text + video */
 }
 
 .embed-iframe.ig-embed {
-  height: 680px;
+  height: 800px;
 }
 
 /* ---- Embed Preview Card (lazy load) ---- */

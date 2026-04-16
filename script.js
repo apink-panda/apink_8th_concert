@@ -23,7 +23,7 @@ let countdownSeconds = 600; // 10 min
 let likeQueues = {}; // { `${sheet}_${id}`: { count, timeout } }
 let currentPage = 1;
 const ITEMS_PER_PAGE = 5;
-const cardCache = new Map(); // String(videoId) -> card HTMLElement
+let renderGeneration = 0; // incremented each render to cancel stale staggered appends
 
 // ===== DOM REFS =====
 const $grid = document.getElementById('card-grid');
@@ -160,16 +160,14 @@ function showLoading(show) {
 }
 
 function renderCards(append = false) {
+  renderGeneration++;
+  const thisGeneration = renderGeneration;
+
   const videos = currentFilter === '全部'
     ? globalData
     : globalData.filter(v => v.sheet === currentFilter);
 
   if (!append) {
-    // Save current grid cards to cache before clearing
-    $grid.querySelectorAll('.video-card').forEach(card => {
-      const id = card.dataset.id;
-      if (id) cardCache.set(id, card);
-    });
     $grid.querySelectorAll('.video-card, .empty-state').forEach(el => el.remove());
   }
 
@@ -190,36 +188,23 @@ function renderCards(append = false) {
   const endIndex = currentPage * ITEMS_PER_PAGE;
   const toRender = videos.slice(startIndex, endIndex);
 
-  let hasNewCards = false;
-
   toRender.forEach((video, index) => {
     const actualIndex = startIndex + index;
     const isLast = index === toRender.length - 1;
-    const cached = cardCache.get(String(video.id));
-    const delay = cached ? index * 80 : index * 400; // cached cards appear instantly
 
     setTimeout(() => {
-      let card;
-      if (cached) {
-        card = cached;
-        // Update rank number in case position changed
-        const rankEl = card.querySelector('.rank-num');
-        if (rankEl) rankEl.textContent = `#${actualIndex + 1}`;
-      } else {
-        card = createVideoCard(video, actualIndex);
-        cardCache.set(String(video.id), card);
-        hasNewCards = true;
-      }
+      // If user switched tabs/loaded more since this was queued, abort
+      if (renderGeneration !== thisGeneration) return;
+
+      const card = createVideoCard(video, actualIndex);
       $grid.appendChild(card);
 
       if (isLast) {
-        // Only call processEmbeds if there are new (uncached) Threads blockquotes
-        if (hasNewCards) setTimeout(() => processEmbeds(), 400);
         if ($loadMoreBtn) {
           $loadMoreBtn.style.display = videos.length > endIndex ? 'block' : 'none';
         }
       }
-    }, delay);
+    }, index * 300);
   });
 }
 
