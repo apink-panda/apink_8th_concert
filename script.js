@@ -6,8 +6,9 @@
 
 // ===== CONFIGURATION =====
 // 🔧 把你的 Google Apps Script Web App URL 貼在這裡
-const API_URL = 'https://script.google.com/macros/s/AKfycbwcrmegWZSIiI0NdJg6WE7yvjcp-x3Ki0cVCOeQtmskNtTkN3_iIrMg2LyBIuewDknv/exec';
 const MEMBERS = ['初瓏', '普美', '恩地', '南珠', '夏榮', '團體'];
+const API_URL = '__API_URL_PLACEHOLDER__';
+
 const REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 分鐘
 const LIKE_DEBOUNCE_MS = 800; // 推坑 debounce
 
