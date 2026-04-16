@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initTabs();
   initAddModal();
   initAdmin();
+  initEmbedResizeListener();
 
   if ($loadMoreBtn) {
     $loadMoreBtn.addEventListener('click', handleLoadMore);
@@ -318,9 +319,8 @@ function generateEmbedHTML(url) {
     if (!embedUrl.endsWith('/')) embedUrl += '/';
     embedUrl += 'embed/';
     return `
-      <iframe src="${embedUrl}"
-        style="background:#0a0a12; border:1px solid rgba(255,255,255,0.1); margin: 1px auto; max-width: 540px; min-width: 326px; width: calc(100% - 2px); height: 580px; border-radius: 8px;"
-        frameborder="0" scrolling="no" allowtransparency="true">
+      <iframe src="${embedUrl}" class="embed-iframe threads-embed"
+        frameborder="0" scrolling="auto" allowtransparency="true">
       </iframe>
     `;
   }
@@ -331,9 +331,8 @@ function generateEmbedHTML(url) {
     if (!embedUrl.endsWith('/')) embedUrl += '/';
     embedUrl += 'embed/captioned/';
     return `
-      <iframe src="${embedUrl}"
-        style="background:#0a0a12; border:1px solid rgba(255,255,255,0.1); margin: 1px auto; max-width: 540px; min-width: 326px; width: calc(100% - 2px); height: 600px; border-radius: 8px;"
-        frameborder="0" scrolling="no" allowtransparency="true">
+      <iframe src="${embedUrl}" class="embed-iframe ig-embed"
+        frameborder="0" scrolling="auto" allowtransparency="true">
       </iframe>
     `;
   }
@@ -355,6 +354,27 @@ function generateEmbedHTML(url) {
 
 function processEmbeds() {
   // Both Threads and IG now use direct iframes — no embed script needed
+}
+
+function initEmbedResizeListener() {
+  // Listen for postMessage from embedded iframes (Meta sends resize events)
+  window.addEventListener('message', (event) => {
+    try {
+      const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+      const height = data.height || data.h;
+      if (!height || height < 100) return;
+
+      // Find the iframe that sent this message
+      const iframes = document.querySelectorAll('.embed-iframe');
+      iframes.forEach(iframe => {
+        try {
+          if (iframe.contentWindow === event.source) {
+            iframe.style.height = Math.ceil(height) + 'px';
+          }
+        } catch (e) {}
+      });
+    } catch (e) {}
+  });
 }
 
 // ===== LIKE / 推坑 =====

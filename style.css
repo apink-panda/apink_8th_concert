@@ -365,6 +365,27 @@ body {
   border: none !important;
 }
 
+/* Direct embed iframes */
+.embed-iframe {
+  background: #0a0a12;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 1px auto;
+  display: block;
+  max-width: 540px;
+  min-width: 280px;
+  width: calc(100% - 2px);
+  border-radius: 8px;
+  transition: height 0.3s ease;
+}
+
+.embed-iframe.threads-embed {
+  height: 680px; /* generous default, auto-resized by postMessage */
+}
+
+.embed-iframe.ig-embed {
+  height: 680px;
+}
+
 /* ---- Embed Preview Card (lazy load) ---- */
 .embed-container {
   width: 100%;
