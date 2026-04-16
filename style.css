@@ -288,7 +288,24 @@ body {
 .content {
   max-width: 800px;
   margin: 0 auto;
-  padding: var(--spacing-lg) var(--spacing-md) var(--spacing-2xl);
+  padding: var(--spacing-sm) var(--spacing-md) var(--spacing-2xl);
+}
+
+.feed-header {
+  text-align: center;
+  margin-bottom: var(--spacing-lg);
+}
+
+.feed-header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  display: inline-block;
+  padding: 8px 24px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
 }
 
 /* ---- Video Card ---- */

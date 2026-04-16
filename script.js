@@ -13,8 +13,8 @@ const REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 分鐘
 const LIKE_DEBOUNCE_MS = 800; // 推坑 debounce
 
 // ===== STATE =====
-let currentSheet = '初瓏';
-let allData = {};
+let globalData = [];
+let currentFilter = '全部';
 let isLoading = false;
 let adminPassword = '';
 let isAdminLoggedIn = false;
@@ -75,11 +75,11 @@ function initTabs() {
   tabBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       const sheet = btn.dataset.sheet;
-      if (sheet === currentSheet) return;
+      if (sheet === currentFilter) return;
 
       tabBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      currentSheet = sheet;
+      currentFilter = sheet;
       currentPage = 1;
       renderCards();
     });
@@ -87,14 +87,17 @@ function initTabs() {
 }
 
 function updateTabCounts() {
-  let total = 0;
+  // Update total count
+  const $countAll = document.getElementById('count-全部');
+  if ($countAll) $countAll.textContent = globalData.length;
+  $totalCount.textContent = globalData.length;
+
+  // Update each member count
   MEMBERS.forEach(member => {
-    const count = allData[member] ? allData[member].length : 0;
-    total += count;
+    const count = globalData.filter(v => v.sheet === member).length;
     const $count = document.getElementById(`count-${member}`);
     if ($count) $count.textContent = count;
   });
-  $totalCount.textContent = total;
 }
 
 // ===== DATA LOADING =====
@@ -113,15 +116,17 @@ async function loadAllData() {
       return;
     }
 
-    // Process and sort data for each member
+    // Process and merge data for all members
+    globalData = [];
     MEMBERS.forEach(member => {
-      if (result.data && result.data[member]) {
-        allData[member] = sortVideos(result.data[member].data || []);
-      } else {
-        allData[member] = [];
+      if (result.data && result.data[member] && result.data[member].data) {
+        // Tag with sheet name so we know where it came from
+        result.data[member].data.forEach(v => v.sheet = member);
+        globalData.push(...result.data[member].data);
       }
     });
 
+    globalData = sortVideos(globalData);
     updateTabCounts();
     renderCards();
   } catch (err) {
@@ -135,11 +140,11 @@ async function loadAllData() {
 
 // ===== SORTING =====
 function sortVideos(videos) {
-  // 先依提交時間排序（新→舊），再依推坑指數排序（高→低）
+  // 先依推坑指數排序（高→低），再依提交時間排序（新→舊）
   return [...videos].sort((a, b) => {
-    const timeDiff = new Date(b.created_at) - new Date(a.created_at);
-    if (timeDiff !== 0) return timeDiff;
-    return (b.likes || 0) - (a.likes || 0);
+    const likesDiff = (b.likes || 0) - (a.likes || 0);
+    if (likesDiff !== 0) return likesDiff;
+    return new Date(b.created_at) - new Date(a.created_at);
   });
 }
 
@@ -153,7 +158,9 @@ function showLoading(show) {
 }
 
 function renderCards(append = false) {
-  const videos = allData[currentSheet] || [];
+  const videos = currentFilter === '全部'
+    ? globalData
+    : globalData.filter(v => v.sheet === currentFilter);
 
   if (!append) {
     // Clear existing cards but keep loading
@@ -213,11 +220,12 @@ function createVideoCard(video, index) {
       <div class="video-card__info">
         <div class="video-card__author">
           <span style="font-weight: 800; color: var(--pink-start); margin-right: 6px; font-size: 1.1rem; font-style: italic;">#${index + 1}</span>
+          <span style="font-size: 0.8rem; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; margin-right: 6px;">${escapeHtml(video.sheet)}</span>
           📎 ${escapeHtml(video.submitted_by || '匿名')}
         </div>
         <div class="video-card__time">${timeAgo}</div>
       </div>
-      <button class="like-btn" data-id="${video.id}" data-sheet="${currentSheet}" onclick="handleLike(this)">
+      <button class="like-btn" data-id="${video.id}" data-sheet="${video.sheet}" onclick="handleLike(this)">
         <span class="like-btn__icon">❤️</span>
         <span class="like-btn__count">${video.likes || 0}</span>
       </button>
@@ -311,13 +319,10 @@ function handleLike(btn) {
   const currentCount = parseInt($count.textContent) || 0;
   $count.textContent = currentCount + 1;
 
-  // Also update allData
-  const memberData = allData[sheet];
-  if (memberData) {
-    const video = memberData.find(v => String(v.id) === String(id));
-    if (video) {
-      video.likes = currentCount + 1;
-    }
+  // Also update globalData
+  const video = globalData.find(v => String(v.id) === String(id));
+  if (video) {
+    video.likes = currentCount + 1;
   }
 
   // Debounced batch send
@@ -370,8 +375,8 @@ async function sendLike(sheet, id, count) {
 // ===== ADD VIDEO MODAL =====
 function initAddModal() {
   $addBtn.addEventListener('click', () => {
-    // Pre-select current tab's member
-    $addSheet.value = currentSheet;
+    // Pre-select current filter's member (if on 全部, default to 初瓏)
+    $addSheet.value = (currentFilter !== '全部') ? currentFilter : '初瓏';
     $addUrl.value = '';
     $addNickname.value = '';
     $addModal.classList.add('active');
@@ -417,21 +422,15 @@ async function handleAddSubmit() {
     cleanInputUrl = urlObj.toString();
   } catch (e) { }
 
-  let duplicateFound = false;
-  for (const s of Object.keys(allData)) {
-    if (allData[s] && allData[s].some(v => {
-      let existingCleanUrl = v.url;
-      try {
-        let eUrl = new URL(existingCleanUrl);
-        eUrl.search = '';
-        existingCleanUrl = eUrl.toString();
-      } catch (e) { }
-      return existingCleanUrl === cleanInputUrl;
-    })) {
-      duplicateFound = true;
-      break;
-    }
-  }
+  let duplicateFound = globalData.some(v => {
+    let existingCleanUrl = v.url;
+    try {
+      let eUrl = new URL(existingCleanUrl);
+      eUrl.search = '';
+      existingCleanUrl = eUrl.toString();
+    } catch (e) { }
+    return existingCleanUrl === cleanInputUrl;
+  });
 
   if (duplicateFound) {
     showToast('已經有人加入過這個影片了！', 'error');
@@ -466,16 +465,16 @@ async function handleAddSubmit() {
       likes: 0,
       created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
       submitted_by: nickname || '匿名',
-      status: 'approved'
+      status: 'approved',
+      sheet: sheet
     };
 
-    if (!allData[sheet]) allData[sheet] = [];
-    allData[sheet].unshift(newVideo);
+    globalData.unshift(newVideo);
+    globalData = sortVideos(globalData);
     updateTabCounts();
 
-    if (sheet === currentSheet) {
-      renderCards();
-    }
+    currentPage = 1;
+    renderCards();
 
     // Reload from server in background
     setTimeout(() => loadAllData(), 3000);
