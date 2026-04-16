@@ -365,6 +365,117 @@ body {
   border: none !important;
 }
 
+/* ---- Embed Preview Card (lazy load) ---- */
+.embed-container {
+  width: 100%;
+}
+
+.embed-preview {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 260px;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform var(--transition-base), filter var(--transition-base);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.embed-preview.threads {
+  background: linear-gradient(145deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.embed-preview.instagram {
+  background: linear-gradient(145deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%);
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
+.embed-preview:hover {
+  transform: scale(1.01);
+  filter: brightness(1.1);
+}
+
+.embed-preview:active {
+  transform: scale(0.98);
+}
+
+.embed-preview__icon {
+  font-size: 2.2rem;
+  opacity: 0.85;
+}
+
+.embed-preview__play-btn {
+  width: 64px;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  transition: background var(--transition-fast);
+}
+
+.embed-preview:hover .embed-preview__play-btn {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.embed-preview__label {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+.embed-preview__link {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.6);
+  text-decoration: none;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.embed-preview__link:hover {
+  color: #fff;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.embed-iframe-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.embed-collapse-btn {
+  display: block;
+  margin: 0 auto 8px;
+  padding: 5px 16px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.embed-collapse-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
 .video-card__footer {
   display: flex;
   align-items: center;
