@@ -290,56 +290,25 @@ function generateEmbedHTML(url) {
     cleanUrl = urlObj.toString();
   } catch (e) { }
 
-  const isThreads = cleanUrl.includes('threads.net') || cleanUrl.includes('threads.com');
-  const isInstagram = cleanUrl.includes('instagram.com');
-
-  if (isThreads || isInstagram) {
-    const icon = isThreads ? '🧵' : '📷';
-    const platform = isThreads ? 'Threads' : 'Instagram';
-    const platformClass = isThreads ? 'threads' : 'instagram';
-
-    let iframeUrl = '';
-    if (isThreads) {
-      const postIdMatch = cleanUrl.match(/\/post\/([A-Za-z0-9_-]+)/);
-      if (postIdMatch) {
-        iframeUrl = `https://www.threads.net/embed/post/${postIdMatch[1]}`;
-      }
-    } else {
-      let embedUrl = cleanUrl;
-      if (!embedUrl.endsWith('/')) embedUrl += '/';
-      iframeUrl = embedUrl + 'embed/captioned/';
-    }
-
-    if (!iframeUrl) {
-      // No iframe URL extracted, fallback to link preview
-      return `
-        <div class="link-preview">
-          <span class="link-preview__icon">${icon}</span>
-          <span class="link-preview__platform">${platform} 貼文</span>
-          <a class="link-preview__url" href="${cleanUrl}" target="_blank" rel="noopener">${cleanUrl}</a>
-          <a class="link-preview__open" href="${cleanUrl}" target="_blank" rel="noopener">開啟連結 ↗</a>
-        </div>
-      `;
-    }
-
+  // Threads — use official blockquote embed (embed.js handles rendering)
+  if (cleanUrl.includes('threads.net') || cleanUrl.includes('threads.com')) {
     return `
-      <div class="embed-container">
-        <div class="embed-preview ${platformClass}" onclick="expandEmbed(this)">
-          <div class="embed-preview__icon">${icon}</div>
-          <div class="embed-preview__play-btn">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
-          </div>
-          <div class="embed-preview__label">${platform} 貼文 · 點擊播放</div>
-          <a class="embed-preview__link" href="${cleanUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">↗ 開啟原文</a>
-        </div>
-        <div class="embed-iframe-wrapper" style="display:none">
-          <button class="embed-collapse-btn" onclick="collapseEmbed(this)">↩ 收起</button>
-          <iframe data-src="${iframeUrl}"
-            style="background:#0a0a12; border:1px solid rgba(255,255,255,0.1); margin: 0 auto; display:block; max-width:540px; min-width:326px; width:100%; height:580px; border-radius:8px;"
-            frameborder="0" scrolling="no" allowtransparency="true">
-          </iframe>
-        </div>
-      </div>
+      <blockquote class="text-post-media" data-text-post-permalink="${cleanUrl}" data-text-post-version="0"
+        style="background:#0a0a12; border:0; margin: 1px auto; max-width: 540px; min-width: 326px; padding:0; width: calc(100% - 2px);">
+      </blockquote>
+    `;
+  }
+
+  // Instagram — use direct iframe
+  if (cleanUrl.includes('instagram.com')) {
+    let embedUrl = cleanUrl;
+    if (!embedUrl.endsWith('/')) embedUrl += '/';
+    embedUrl += 'embed/captioned/';
+    return `
+      <iframe src="${embedUrl}"
+        style="background:#0a0a12; border:1px solid rgba(255,255,255,0.1); margin: 1px auto; max-width: 540px; min-width: 326px; width: calc(100% - 2px); height: 600px; border-radius: 8px;"
+        frameborder="0" scrolling="no" allowtransparency="true">
+      </iframe>
     `;
   }
 
@@ -348,7 +317,6 @@ function generateEmbedHTML(url) {
     cleanUrl.includes('instagram') ? 'Instagram' : '連結';
   const icon = cleanUrl.includes('threads') ? '🧵' :
     cleanUrl.includes('instagram') ? '📷' : '🔗';
-
   return `
     <div class="link-preview">
       <span class="link-preview__icon">${icon}</span>
@@ -359,39 +327,19 @@ function generateEmbedHTML(url) {
   `;
 }
 
-function expandEmbed(previewEl) {
-  const container = previewEl.closest('.embed-container');
-  const wrapper = container.querySelector('.embed-iframe-wrapper');
-  const iframe = wrapper.querySelector('iframe');
-
-  // Lazy load: only set src on first expand
-  if (!iframe.getAttribute('src')) {
-    iframe.src = iframe.dataset.src;
-  }
-
-  previewEl.style.display = 'none';
-  wrapper.style.display = 'block';
-
-  // Re-apply scroll overlay to the new iframe
-  const card = container.closest('.video-card');
-  if (card) {
-    const existingOverlay = card.querySelector('.embed-scroll-overlay');
-    if (existingOverlay) existingOverlay.remove();
-    addScrollOverlay(card);
-  }
-}
-
-function collapseEmbed(collapseBtn) {
-  const wrapper = collapseBtn.closest('.embed-iframe-wrapper');
-  const container = wrapper.closest('.embed-container');
-  const preview = container.querySelector('.embed-preview');
-
-  wrapper.style.display = 'none';
-  preview.style.display = '';
-}
-
 function processEmbeds() {
-  // iframes handle their own loading — nothing needed here
+  // Threads: wait for embed.js to load __tte, then process new blockquotes
+  // NEVER remove or re-add the embed.js script — only call __tte.process()
+  let retries = 0;
+  const tryProcess = () => {
+    if (window.__tte && window.__tte.process) {
+      try { window.__tte.process(); } catch (e) {}
+    } else if (retries < 20) {
+      retries++;
+      setTimeout(tryProcess, 500);
+    }
+  };
+  tryProcess();
 }
 
 // ===== LIKE / 推坑 =====
