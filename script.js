@@ -108,7 +108,7 @@ async function loadAllData() {
 
   try {
     const url = `${API_URL}?action=readAll`;
-    const response = await fetch(url);
+    const response = await fetch(url, { redirect: 'follow' });
     const result = await response.json();
 
     if (result.error) {
