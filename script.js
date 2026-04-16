@@ -245,12 +245,26 @@ function generateEmbedHTML(url) {
     cleanUrl = urlObj.toString();
   } catch (e) { }
 
-  // Threads post
+  // Threads post — use iframe directly (blockquote+embed.js is unreliable for dynamic content)
   if (cleanUrl.includes('threads.net') || cleanUrl.includes('threads.com')) {
+    const postIdMatch = cleanUrl.match(/\/post\/([A-Za-z0-9_-]+)/);
+    if (postIdMatch) {
+      const postId = postIdMatch[1];
+      return `
+        <iframe src="https://www.threads.net/embed/post/${postId}"
+          style="background:#0a0a12; border:1px solid rgba(255,255,255,0.1); margin: 1px auto; max-width: 540px; min-width: 326px; width: calc(100% - 2px); height: 580px; border-radius: 8px;"
+          frameborder="0" scrolling="no" allowtransparency="true">
+        </iframe>
+      `;
+    }
+    // Fallback if post ID can't be extracted
     return `
-      <blockquote class="text-post-media" data-text-post-permalink="${cleanUrl}" data-text-post-version="0"
-        style="background:#0a0a12; border:0; margin: 1px auto; max-width: 540px; min-width: 326px; padding:0; width: calc(100% - 2px);">
-      </blockquote>
+      <div class="link-preview">
+        <span class="link-preview__icon">🧵</span>
+        <span class="link-preview__platform">Threads 貼文</span>
+        <a class="link-preview__url" href="${cleanUrl}" target="_blank" rel="noopener">${cleanUrl}</a>
+        <a class="link-preview__open" href="${cleanUrl}" target="_blank" rel="noopener">開啟連結 ↗</a>
+      </div>
     `;
   }
 
