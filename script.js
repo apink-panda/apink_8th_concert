@@ -23,6 +23,7 @@ let countdownSeconds = 600; // 10 min
 let likeQueues = {}; // { `${sheet}_${id}`: { count, timeout } }
 let currentPage = 1;
 const ITEMS_PER_PAGE = 5;
+const cardCache = new Map(); // String(videoId) -> card HTMLElement
 
 // ===== DOM REFS =====
 const $grid = document.getElementById('card-grid');
@@ -163,8 +164,12 @@ function renderCards(append = false) {
     : globalData.filter(v => v.sheet === currentFilter);
 
   if (!append) {
-    const existingCards = $grid.querySelectorAll('.video-card, .empty-state');
-    existingCards.forEach(el => el.remove());
+    // Save current grid cards to cache before clearing
+    $grid.querySelectorAll('.video-card').forEach(card => {
+      const id = card.dataset.id;
+      if (id) cardCache.set(id, card);
+    });
+    $grid.querySelectorAll('.video-card, .empty-state').forEach(el => el.remove());
   }
 
   if (videos.length === 0 && !append) {
@@ -184,22 +189,36 @@ function renderCards(append = false) {
   const endIndex = currentPage * ITEMS_PER_PAGE;
   const toRender = videos.slice(startIndex, endIndex);
 
-  // Staggered loading: add one card at a time with delay
+  let hasNewCards = false;
+
   toRender.forEach((video, index) => {
     const actualIndex = startIndex + index;
-    const isLast = (index === toRender.length - 1);
+    const isLast = index === toRender.length - 1;
+    const cached = cardCache.get(String(video.id));
+    const delay = cached ? index * 80 : index * 400; // cached cards appear instantly
+
     setTimeout(() => {
-      const card = createVideoCard(video, actualIndex);
+      let card;
+      if (cached) {
+        card = cached;
+        // Update rank number in case position changed
+        const rankEl = card.querySelector('.rank-num');
+        if (rankEl) rankEl.textContent = `#${actualIndex + 1}`;
+      } else {
+        card = createVideoCard(video, actualIndex);
+        cardCache.set(String(video.id), card);
+        hasNewCards = true;
+      }
       $grid.appendChild(card);
 
-      // After last card is in DOM, trigger embeds once
       if (isLast) {
-        setTimeout(() => processEmbeds(), 400);
+        // Only call processEmbeds if there are new (uncached) Threads blockquotes
+        if (hasNewCards) setTimeout(() => processEmbeds(), 400);
         if ($loadMoreBtn) {
           $loadMoreBtn.style.display = videos.length > endIndex ? 'block' : 'none';
         }
       }
-    }, index * 400); // 400ms stagger between cards
+    }, delay);
   });
 }
 
@@ -219,7 +238,7 @@ function createVideoCard(video, index) {
     <div class="video-card__footer">
       <div class="video-card__info">
         <div class="video-card__author">
-          <span style="font-weight: 800; color: var(--pink-start); margin-right: 6px; font-size: 1.1rem; font-style: italic;">#${index + 1}</span>
+          <span style="font-weight: 800; color: var(--pink-start); margin-right: 6px; font-size: 1.1rem; font-style: italic;" class="rank-num">#${index + 1}</span>
           <span style="font-size: 0.8rem; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; margin-right: 6px;">${escapeHtml(video.sheet)}</span>
           📎 ${escapeHtml(video.submitted_by || '匿名')}
         </div>
