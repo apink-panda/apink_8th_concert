@@ -232,7 +232,52 @@ function createVideoCard(video, index) {
     </div>
   `;
 
+  addScrollOverlay(card);
   return card;
+}
+
+function addScrollOverlay(card) {
+  const embedDiv = card.querySelector('.video-card__embed');
+  if (!embedDiv) return;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'embed-scroll-overlay';
+
+  let touchStartY = 0;
+  let touchStartX = 0;
+  let touchStartTime = 0;
+  let scrollStartY = 0;
+  let isScrolling = false;
+
+  overlay.addEventListener('touchstart', (e) => {
+    touchStartY = e.touches[0].clientY;
+    touchStartX = e.touches[0].clientX;
+    touchStartTime = Date.now();
+    scrollStartY = window.scrollY;
+    isScrolling = false;
+  }, { passive: true });
+
+  overlay.addEventListener('touchmove', (e) => {
+    const dy = e.touches[0].clientY - touchStartY;
+    const dx = e.touches[0].clientX - touchStartX;
+    if (Math.abs(dy) > Math.abs(dx)) {
+      isScrolling = true;
+      window.scrollTo(0, scrollStartY - dy);
+    }
+  }, { passive: true });
+
+  overlay.addEventListener('touchend', (e) => {
+    if (isScrolling) return; // was a scroll, don't treat as tap
+    const elapsed = Date.now() - touchStartTime;
+    const moved = Math.abs(e.changedTouches[0].clientY - touchStartY);
+    // Short tap: let click through to iframe
+    if (elapsed < 250 && moved < 10) {
+      overlay.style.pointerEvents = 'none';
+      setTimeout(() => { overlay.style.pointerEvents = ''; }, 600);
+    }
+  }, { passive: true });
+
+  embedDiv.appendChild(overlay);
 }
 
 function generateEmbedHTML(url) {

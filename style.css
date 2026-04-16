@@ -338,6 +338,15 @@ body {
   }
 }
 
+/* Transparent overlay to intercept touch-scroll on iframes */
+.embed-scroll-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  touch-action: pan-y; /* Allow vertical scroll to pass through to page */
+  -webkit-overflow-scrolling: touch;
+}
+
 .video-card__embed {
   width: 100%;
   display: block;
