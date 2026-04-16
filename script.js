@@ -6,7 +6,7 @@
 
 // ===== CONFIGURATION =====
 // 🔧 把你的 Google Apps Script Web App URL 貼在這裡
-const API_URL = '__API_URL_PLACEHOLDER__';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwcrmegWZSIiI0NdJg6WE7yvjcp-x3Ki0cVCOeQtmskNtTkN3_iIrMg2LyBIuewDknv/exec';
 const MEMBERS = ['初瓏', '普美', '恩地', '南珠', '夏榮', '團體'];
 const REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 分鐘
 const LIKE_DEBOUNCE_MS = 800; // 推坑 debounce
@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initTabs();
   initAddModal();
   initAdmin();
-  
+
   if ($loadMoreBtn) {
     $loadMoreBtn.addEventListener('click', handleLoadMore);
   }
@@ -234,7 +234,7 @@ function generateEmbedHTML(url) {
     const urlObj = new URL(cleanUrl);
     urlObj.search = ''; // Strip all ? parameters which can break embeds
     cleanUrl = urlObj.toString();
-  } catch(e) {}
+  } catch (e) { }
 
   // Threads post
   if (cleanUrl.includes('threads.net') || cleanUrl.includes('threads.com')) {
@@ -276,27 +276,20 @@ function generateEmbedHTML(url) {
 }
 
 function processEmbeds() {
-  const processOrRetry = (retryCount) => {
-    let processed = false;
-    
-    // Process Threads embeds
-    if (window.__tte && window.__tte.process) {
-      window.__tte.process();
-      processed = true;
-    }
-    
-    // Process Instagram embeds (fallback)
-    if (window.instgrm && window.instgrm.Embeds) {
-      window.instgrm.Embeds.process();
-      processed = true;
-    }
-    
-    if (retryCount > 0) {
-      setTimeout(() => processOrRetry(retryCount - 1), 1000);
-    }
-  };
-  
-  processOrRetry(5);
+  // IG 分為 process() 或重新載入
+  if (window.instgrm && window.instgrm.Embeds) {
+    window.instgrm.Embeds.process();
+  }
+
+  // Threads API 經常會失效（尤其是動態新增元素時）
+  // 最穩定的解法是直接移除舊的 scrip tag，然後重新插入
+  document.querySelectorAll('script[src*="threads.net/embed.js"]').forEach(s => s.remove());
+  const threadsScript = document.createElement('script');
+  threadsScript.src = 'https://www.threads.net/embed.js';
+  threadsScript.async = true;
+  document.body.appendChild(threadsScript);
+
+  // 當腳本載入時會自動抓取尚未處理的 blockquote
 }
 
 // ===== LIKE / 推坑 =====
@@ -421,7 +414,7 @@ async function handleAddSubmit() {
     const urlObj = new URL(cleanInputUrl);
     urlObj.search = '';
     cleanInputUrl = urlObj.toString();
-  } catch(e) {}
+  } catch (e) { }
 
   let duplicateFound = false;
   for (const s of Object.keys(allData)) {
@@ -431,7 +424,7 @@ async function handleAddSubmit() {
         let eUrl = new URL(existingCleanUrl);
         eUrl.search = '';
         existingCleanUrl = eUrl.toString();
-      } catch(e) {}
+      } catch (e) { }
       return existingCleanUrl === cleanInputUrl;
     })) {
       duplicateFound = true;
