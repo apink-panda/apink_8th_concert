@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>The Origin : APINK — 第八次巡迴演唱會 Fancam 影片集</title>
+  <meta name="description" content="Apink 第八次巡迴演唱會 The Origin 粉絲 Fancam 影片收集與推坑網站。初瓏、普美、恩地、南珠、夏榮，一起推坑吧！">
+  <meta name="theme-color" content="#0a0a12">
+  <!-- OG Tags -->
+  <meta property="og:title" content="The Origin : APINK — Fancam 推坑集">
+  <meta property="og:description" content="Apink 15 週年 第八次巡迴演唱會 Fancam 影片推坑網站 🩷 初瓏、普美、恩地、南珠、夏榮">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://apink-panda.github.io/apink_8th_concert/">
+  <link rel="canonical" href="https://apink-panda.github.io/apink_8th_concert/">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🩷</text></svg>">
+  <link rel="stylesheet" href="style.css?v=8">
+</head>
+<body>
+
+  <!-- Animated Background -->
+  <div class="bg-gradient"></div>
+
+  <!-- Header -->
+  <header class="header">
+    <h1 class="header__logo">The Origin : APINK</h1>
+    <p class="header__subtitle">제8회 팬캠 컬렉션</p>
+    <p class="header__concert">第八次巡迴演唱會 ✦ Fancam 推坑集</p>
+  </header>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar">
+    <div class="stat-item">
+      <span class="stat-item__icon">🎬</span>
+      <span>影片數</span>
+      <span class="stat-item__value" id="total-count">0</span>
+    </div>
+    <button class="tab-add-btn" id="add-btn" title="新增影片" style="margin-left: auto;">＋ 新增推坑</button>
+  </div>
+
+  <!-- Tabs -->
+  <nav class="tabs-container">
+    <div class="tabs" id="tabs">
+      <button class="tab active" data-sheet="初瓏" id="tab-初瓏">
+        初瓏 <span class="tab__count" id="count-初瓏">0</span>
+      </button>
+      <button class="tab" data-sheet="普美" id="tab-普美">
+        普美 <span class="tab__count" id="count-普美">0</span>
+      </button>
+      <button class="tab" data-sheet="恩地" id="tab-恩地">
+        恩地 <span class="tab__count" id="count-恩地">0</span>
+      </button>
+      <button class="tab" data-sheet="南珠" id="tab-南珠">
+        南珠 <span class="tab__count" id="count-南珠">0</span>
+      </button>
+      <button class="tab" data-sheet="夏榮" id="tab-夏榮">
+        夏榮 <span class="tab__count" id="count-夏榮">0</span>
+      </button>
+      <button class="tab" data-sheet="團體" id="tab-團體">
+        團體 <span class="tab__count" id="count-團體">0</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Content Area -->
+  <main class="content">
+    <div class="card-grid" id="card-grid">
+      <div class="loading-spinner" id="loading">
+        <div class="spinner"></div>
+        <span>載入中...</span>
+      </div>
+    </div>
+  </main>
+
+  <footer style="display: flex; justify-content: center; padding: 20px 0 40px;">
+    <div class="stat-item">
+      <div class="refresh-timer">
+        <span class="refresh-timer__dot"></span>
+        <span id="refresh-countdown">10:00 後更新排序</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Add Video Modal -->
+  <div class="modal-overlay" id="add-modal">
+    <div class="modal">
+      <div class="modal__header">
+        <h2 class="modal__title">📎 新增 Fancam 影片</h2>
+        <button class="modal__close" id="add-modal-close">✕</button>
+      </div>
+
+      <div class="modal__warning">
+        <span class="modal__warning-icon">⚠️</span>
+        <div>
+          嚴禁上傳與演唱會無關、含暴力或色情內容之影片連結。<br>
+          違者須自行承擔法律責任。
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="add-sheet">選擇成員 / 團體</label>
+        <select id="add-sheet">
+          <option value="初瓏">初瓏</option>
+          <option value="普美">普美</option>
+          <option value="恩地">恩地</option>
+          <option value="南珠">南珠</option>
+          <option value="夏榮">夏榮</option>
+          <option value="團體">團體</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="add-url">Instagram / Threads 分享連結</label>
+        <input type="url" id="add-url" placeholder="https://www.threads.net/..." autocomplete="off">
+      </div>
+
+      <div class="form-group">
+        <label for="add-nickname">暱稱（可不填）</label>
+        <input type="text" id="add-nickname" placeholder="匿名" maxlength="30" autocomplete="off">
+      </div>
+
+      <button class="btn-primary" id="add-submit">提交影片</button>
+    </div>
+  </div>
+
+  <!-- Admin Login Modal -->
+  <div class="modal-overlay" id="admin-login-modal">
+    <div class="modal" style="max-width: 360px">
+      <div class="modal__header">
+        <h2 class="modal__title">🔐 管理者登入</h2>
+        <button class="modal__close" id="admin-login-close">✕</button>
+      </div>
+      <div class="admin-login">
+        <input type="password" id="admin-password" placeholder="請輸入管理者密碼" autocomplete="off">
+        <button class="btn-primary" id="admin-login-btn">登入</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Panel -->
+  <div class="admin-panel" id="admin-panel">
+    <div class="admin-panel__inner">
+      <div class="admin-panel__header">
+        <h2 class="admin-panel__title">⚙️ 管理者面板</h2>
+        <button class="admin-close-btn" id="admin-close">關閉面板</button>
+      </div>
+
+      <!-- Review Toggle -->
+      <div class="review-toggle">
+        <div>
+          <div class="review-toggle__label">審核模式</div>
+          <div class="review-toggle__desc" id="review-status-text">
+            關閉中 — 用戶提交的影片會直接上架
+          </div>
+        </div>
+        <div class="toggle-switch" id="review-toggle" role="switch" aria-checked="false">
+          <div class="toggle-switch__knob"></div>
+        </div>
+      </div>
+
+      <!-- Pending Items -->
+      <div id="pending-list"></div>
+    </div>
+  </div>
+
+  <!-- Admin Trigger (hidden button) -->
+  <button class="admin-trigger" id="admin-trigger" title="管理">⚙</button>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Threads/IG embed script -->
+  <script async defer src="https://www.threads.net/embed.js"></script>
+  <script async defer src="//www.instagram.com/embed.js"></script>
+
+  <script src="script.js?v=8"></script>
+</body>
+</html>
