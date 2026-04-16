@@ -334,7 +334,7 @@ function generateEmbedHTML(url) {
         </div>
         <div class="embed-iframe-wrapper" style="display:none">
           <button class="embed-collapse-btn" onclick="collapseEmbed(this)">↩ 收起</button>
-          <iframe data-src="${iframeUrl}" src=""
+          <iframe data-src="${iframeUrl}"
             style="background:#0a0a12; border:1px solid rgba(255,255,255,0.1); margin: 0 auto; display:block; max-width:540px; min-width:326px; width:100%; height:580px; border-radius:8px;"
             frameborder="0" scrolling="no" allowtransparency="true">
           </iframe>
@@ -365,7 +365,7 @@ function expandEmbed(previewEl) {
   const iframe = wrapper.querySelector('iframe');
 
   // Lazy load: only set src on first expand
-  if (!iframe.src || iframe.src === window.location.href || iframe.src === '') {
+  if (!iframe.getAttribute('src')) {
     iframe.src = iframe.dataset.src;
   }
 
@@ -391,23 +391,7 @@ function collapseEmbed(collapseBtn) {
 }
 
 function processEmbeds() {
-  // IG embeds
-  if (window.instgrm && window.instgrm.Embeds) {
-    window.instgrm.Embeds.process();
-  }
-
-  // Threads embeds: wait for __tte to be available, then process
-  // NEVER remove the embed script - that kills __tte permanently
-  let retries = 0;
-  const tryThreads = () => {
-    if (window.__tte && window.__tte.process) {
-      try { window.__tte.process(); } catch (e) {}
-    } else if (retries < 15) {
-      retries++;
-      setTimeout(tryThreads, 500);
-    }
-  };
-  tryThreads();
+  // iframes handle their own loading — nothing needed here
 }
 
 // ===== LIKE / 推坑 =====
