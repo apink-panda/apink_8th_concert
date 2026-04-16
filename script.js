@@ -22,7 +22,7 @@ let refreshTimer = null;
 let countdownSeconds = 600; // 10 min
 let likeQueues = {}; // { `${sheet}_${id}`: { count, timeout } }
 let currentPage = 1;
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 5;
 
 // ===== DOM REFS =====
 const $grid = document.getElementById('card-grid');
@@ -163,7 +163,6 @@ function renderCards(append = false) {
     : globalData.filter(v => v.sheet === currentFilter);
 
   if (!append) {
-    // Clear existing cards but keep loading
     const existingCards = $grid.querySelectorAll('.video-card, .empty-state');
     existingCards.forEach(el => el.remove());
   }
@@ -185,22 +184,26 @@ function renderCards(append = false) {
   const endIndex = currentPage * ITEMS_PER_PAGE;
   const toRender = videos.slice(startIndex, endIndex);
 
+  // Hide load-more while loading
+  if ($loadMoreBtn) $loadMoreBtn.style.display = 'none';
+
+  // Staggered loading: add one card at a time with delay
   toRender.forEach((video, index) => {
     const actualIndex = startIndex + index;
-    const card = createVideoCard(video, actualIndex);
-    $grid.appendChild(card);
+    setTimeout(() => {
+      const card = createVideoCard(video, actualIndex);
+      $grid.appendChild(card);
+      // Trigger embed for just this card after a short settle time
+      setTimeout(() => processEmbedsForCard(card), 300);
+
+      // After the last card is appended, update load-more btn
+      if (index === toRender.length - 1) {
+        if ($loadMoreBtn) {
+          $loadMoreBtn.style.display = videos.length > endIndex ? 'block' : 'none';
+        }
+      }
+    }, index * 600); // 600ms between each embed
   });
-
-  if ($loadMoreBtn) {
-    if (videos.length > endIndex) {
-      $loadMoreBtn.style.display = 'block';
-    } else {
-      $loadMoreBtn.style.display = 'none';
-    }
-  }
-
-  // Trigger embed rendering
-  processEmbeds();
 }
 
 function createVideoCard(video, index) {
@@ -284,21 +287,36 @@ function generateEmbedHTML(url) {
   `;
 }
 
-function processEmbeds() {
-  // IG 分為 process() 或重新載入
-  if (window.instgrm && window.instgrm.Embeds) {
-    window.instgrm.Embeds.process();
+function processEmbedsForCard(card) {
+  // IG iframe: already loaded via src, no extra action needed
+  // Threads blockquote: need to trigger embed script
+  const bq = card.querySelector('blockquote.text-post-media');
+  if (!bq) return;
+
+  // Try window.__tte first (already loaded)
+  if (window.__tte && window.__tte.process) {
+    try { window.__tte.process(); } catch(e) {}
+    return;
   }
 
-  // Threads API 經常會失效（尤其是動態新增元素時）
-  // 最穩定的解法是直接移除舊的 scrip tag，然後重新插入
+  // Fallback: reload threads embed script
   document.querySelectorAll('script[src*="threads.net/embed.js"]').forEach(s => s.remove());
   const threadsScript = document.createElement('script');
   threadsScript.src = 'https://www.threads.net/embed.js';
   threadsScript.async = true;
   document.body.appendChild(threadsScript);
+}
 
-  // 當腳本載入時會自動抓取尚未處理的 blockquote
+function processEmbeds() {
+  if (window.instgrm && window.instgrm.Embeds) {
+    window.instgrm.Embeds.process();
+  }
+
+  document.querySelectorAll('script[src*="threads.net/embed.js"]').forEach(s => s.remove());
+  const threadsScript = document.createElement('script');
+  threadsScript.src = 'https://www.threads.net/embed.js';
+  threadsScript.async = true;
+  document.body.appendChild(threadsScript);
 }
 
 // ===== LIKE / 推坑 =====
