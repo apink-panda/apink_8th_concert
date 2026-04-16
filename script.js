@@ -20,6 +20,8 @@ let isAdminLoggedIn = false;
 let refreshTimer = null;
 let countdownSeconds = 600; // 10 min
 let likeQueues = {}; // { `${sheet}_${id}`: { count, timeout } }
+let currentPage = 1;
+const ITEMS_PER_PAGE = 10;
 
 // ===== DOM REFS =====
 const $grid = document.getElementById('card-grid');
@@ -45,15 +47,26 @@ const $reviewToggle = document.getElementById('review-toggle');
 const $reviewStatusText = document.getElementById('review-status-text');
 const $pendingList = document.getElementById('pending-list');
 const $toastContainer = document.getElementById('toast-container');
+const $loadMoreBtn = document.getElementById('load-more-btn');
 
 // ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', () => {
   initTabs();
   initAddModal();
   initAdmin();
+  
+  if ($loadMoreBtn) {
+    $loadMoreBtn.addEventListener('click', handleLoadMore);
+  }
+
   loadAllData();
   startRefreshTimer();
 });
+
+function handleLoadMore() {
+  currentPage++;
+  renderCards(true);
+}
 
 // ===== TABS =====
 function initTabs() {
@@ -66,6 +79,7 @@ function initTabs() {
       tabBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentSheet = sheet;
+      currentPage = 1;
       renderCards();
     });
   });
@@ -137,14 +151,16 @@ function showLoading(show) {
   }
 }
 
-function renderCards() {
+function renderCards(append = false) {
   const videos = allData[currentSheet] || [];
 
-  // Clear existing cards but keep loading
-  const existingCards = $grid.querySelectorAll('.video-card, .empty-state');
-  existingCards.forEach(el => el.remove());
+  if (!append) {
+    // Clear existing cards but keep loading
+    const existingCards = $grid.querySelectorAll('.video-card, .empty-state');
+    existingCards.forEach(el => el.remove());
+  }
 
-  if (videos.length === 0) {
+  if (videos.length === 0 && !append) {
     const empty = document.createElement('div');
     empty.className = 'empty-state';
     empty.innerHTML = `
@@ -153,13 +169,27 @@ function renderCards() {
       <div class="empty-state__sub">點擊上方的 ＋ 來新增第一個 Fancam 吧！</div>
     `;
     $grid.appendChild(empty);
+    if ($loadMoreBtn) $loadMoreBtn.style.display = 'none';
     return;
   }
 
-  videos.forEach((video, index) => {
-    const card = createVideoCard(video, index);
+  const startIndex = append ? (currentPage - 1) * ITEMS_PER_PAGE : 0;
+  const endIndex = currentPage * ITEMS_PER_PAGE;
+  const toRender = videos.slice(startIndex, endIndex);
+
+  toRender.forEach((video, index) => {
+    const actualIndex = startIndex + index;
+    const card = createVideoCard(video, actualIndex);
     $grid.appendChild(card);
   });
+
+  if ($loadMoreBtn) {
+    if (videos.length > endIndex) {
+      $loadMoreBtn.style.display = 'block';
+    } else {
+      $loadMoreBtn.style.display = 'none';
+    }
+  }
 
   // Trigger embed rendering
   processEmbeds();
