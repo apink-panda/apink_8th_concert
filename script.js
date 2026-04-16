@@ -22,7 +22,7 @@ let refreshTimer = null;
 let countdownSeconds = 600; // 10 min
 let likeQueues = {}; // { `${sheet}_${id}`: { count, timeout } }
 let currentPage = 1;
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 5;
 
 // ===== DOM REFS =====
 const $grid = document.getElementById('card-grid');
@@ -163,7 +163,6 @@ function renderCards(append = false) {
     : globalData.filter(v => v.sheet === currentFilter);
 
   if (!append) {
-    // Clear existing cards but keep loading
     const existingCards = $grid.querySelectorAll('.video-card, .empty-state');
     existingCards.forEach(el => el.remove());
   }
@@ -185,22 +184,23 @@ function renderCards(append = false) {
   const endIndex = currentPage * ITEMS_PER_PAGE;
   const toRender = videos.slice(startIndex, endIndex);
 
+  // Staggered loading: add one card at a time with delay
   toRender.forEach((video, index) => {
     const actualIndex = startIndex + index;
-    const card = createVideoCard(video, actualIndex);
-    $grid.appendChild(card);
+    const isLast = (index === toRender.length - 1);
+    setTimeout(() => {
+      const card = createVideoCard(video, actualIndex);
+      $grid.appendChild(card);
+
+      // After last card is in DOM, trigger embeds once
+      if (isLast) {
+        setTimeout(() => processEmbeds(), 400);
+        if ($loadMoreBtn) {
+          $loadMoreBtn.style.display = videos.length > endIndex ? 'block' : 'none';
+        }
+      }
+    }, index * 400); // 400ms stagger between cards
   });
-
-  if ($loadMoreBtn) {
-    if (videos.length > endIndex) {
-      $loadMoreBtn.style.display = 'block';
-    } else {
-      $loadMoreBtn.style.display = 'none';
-    }
-  }
-
-  // Trigger embed rendering
-  processEmbeds();
 }
 
 function createVideoCard(video, index) {
@@ -285,20 +285,23 @@ function generateEmbedHTML(url) {
 }
 
 function processEmbeds() {
-  // IG 分為 process() 或重新載入
+  // IG embeds
   if (window.instgrm && window.instgrm.Embeds) {
     window.instgrm.Embeds.process();
   }
 
-  // Threads API 經常會失效（尤其是動態新增元素時）
-  // 最穩定的解法是直接移除舊的 scrip tag，然後重新插入
-  document.querySelectorAll('script[src*="threads.net/embed.js"]').forEach(s => s.remove());
-  const threadsScript = document.createElement('script');
-  threadsScript.src = 'https://www.threads.net/embed.js';
-  threadsScript.async = true;
-  document.body.appendChild(threadsScript);
-
-  // 當腳本載入時會自動抓取尚未處理的 blockquote
+  // Threads embeds: wait for __tte to be available, then process
+  // NEVER remove the embed script - that kills __tte permanently
+  let retries = 0;
+  const tryThreads = () => {
+    if (window.__tte && window.__tte.process) {
+      try { window.__tte.process(); } catch (e) {}
+    } else if (retries < 15) {
+      retries++;
+      setTimeout(tryThreads, 500);
+    }
+  };
+  tryThreads();
 }
 
 // ===== LIKE / 推坑 =====
