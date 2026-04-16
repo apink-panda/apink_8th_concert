@@ -309,12 +309,19 @@ function generateEmbedHTML(url) {
     cleanUrl = urlObj.toString();
   } catch (e) { }
 
-  // Threads — use official blockquote embed (embed.js handles rendering)
+  // Threads post — direct iframe (append /embed/ to the post URL)
   if (cleanUrl.includes('threads.net') || cleanUrl.includes('threads.com')) {
+    let embedUrl = cleanUrl;
+    // Normalize to threads.net
+    embedUrl = embedUrl.replace('www.threads.com', 'www.threads.net')
+                       .replace('threads.com', 'threads.net');
+    if (!embedUrl.endsWith('/')) embedUrl += '/';
+    embedUrl += 'embed/';
     return `
-      <blockquote class="text-post-media" data-text-post-permalink="${cleanUrl}" data-text-post-version="0"
-        style="background:#0a0a12; border:0; margin: 1px auto; max-width: 540px; min-width: 326px; padding:0; width: calc(100% - 2px);">
-      </blockquote>
+      <iframe src="${embedUrl}"
+        style="background:#0a0a12; border:1px solid rgba(255,255,255,0.1); margin: 1px auto; max-width: 540px; min-width: 326px; width: calc(100% - 2px); height: 580px; border-radius: 8px;"
+        frameborder="0" scrolling="no" allowtransparency="true">
+      </iframe>
     `;
   }
 
@@ -347,19 +354,7 @@ function generateEmbedHTML(url) {
 }
 
 function processEmbeds() {
-  // Check if there are any unprocessed Threads blockquotes
-  const unprocessed = document.querySelectorAll('blockquote.text-post-media');
-  if (unprocessed.length === 0) return;
-
-  // Remove any previously dynamically-injected Threads embed script
-  document.querySelectorAll('script[data-threads-dynamic]').forEach(s => s.remove());
-
-  // Inject fresh embed.js — it will scan the DOM and process all blockquotes
-  const script = document.createElement('script');
-  script.src = 'https://www.threads.net/embed.js';
-  script.async = true;
-  script.setAttribute('data-threads-dynamic', '');
-  document.body.appendChild(script);
+  // Both Threads and IG now use direct iframes — no embed script needed
 }
 
 // ===== LIKE / 推坑 =====
