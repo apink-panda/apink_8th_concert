@@ -347,18 +347,19 @@ function generateEmbedHTML(url) {
 }
 
 function processEmbeds() {
-  // Threads: wait for embed.js to load __tte, then process new blockquotes
-  // NEVER remove or re-add the embed.js script — only call __tte.process()
-  let retries = 0;
-  const tryProcess = () => {
-    if (window.__tte && window.__tte.process) {
-      try { window.__tte.process(); } catch (e) {}
-    } else if (retries < 20) {
-      retries++;
-      setTimeout(tryProcess, 500);
-    }
-  };
-  tryProcess();
+  // Check if there are any unprocessed Threads blockquotes
+  const unprocessed = document.querySelectorAll('blockquote.text-post-media');
+  if (unprocessed.length === 0) return;
+
+  // Remove any previously dynamically-injected Threads embed script
+  document.querySelectorAll('script[data-threads-dynamic]').forEach(s => s.remove());
+
+  // Inject fresh embed.js — it will scan the DOM and process all blockquotes
+  const script = document.createElement('script');
+  script.src = 'https://www.threads.net/embed.js';
+  script.async = true;
+  script.setAttribute('data-threads-dynamic', '');
+  document.body.appendChild(script);
 }
 
 // ===== LIKE / 推坑 =====
