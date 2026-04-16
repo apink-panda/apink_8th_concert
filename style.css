@@ -379,11 +379,32 @@ body {
 }
 
 .embed-iframe.threads-embed {
-  height: 400px; /* small default, auto-resized by postMessage or polling */
+  height: 700px;
 }
 
 .embed-iframe.ig-embed {
-  height: 400px;
+  height: 650px;
+}
+
+.embed-expand-btn {
+  display: block;
+  width: 100%;
+  padding: 8px 0;
+  margin-top: 4px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-glass);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  letter-spacing: 0.5px;
+}
+
+.embed-expand-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
 }
 
 /* ---- Embed Preview Card (lazy load) ---- */

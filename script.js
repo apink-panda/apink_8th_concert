@@ -56,7 +56,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initTabs();
   initAddModal();
   initAdmin();
-  initEmbedResizeListener();
 
   if ($loadMoreBtn) {
     $loadMoreBtn.addEventListener('click', handleLoadMore);
@@ -220,6 +219,7 @@ function createVideoCard(video, index) {
   card.innerHTML = `
     <div class="video-card__embed">
       ${embedContent}
+      <button class="embed-expand-btn" onclick="toggleEmbedHeight(this)">⤓ 展開更多</button>
     </div>
     <div class="video-card__footer">
       <div class="video-card__info">
@@ -341,75 +341,23 @@ function processEmbeds() {
   // Both Threads and IG now use direct iframes — no embed script needed
 }
 
-function initEmbedResizeListener() {
-  // 1. Listen for postMessage from embedded iframes (Meta sends resize events)
-  window.addEventListener('message', (event) => {
-    let height = null;
-    try {
-      const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-      // Various Meta embed message formats
-      height = data?.details?.height || data?.height || data?.h;
-    } catch (e) {
-      // event.data might be a plain number
-      if (typeof event.data === 'number' && event.data > 100) {
-        height = event.data;
-      }
-    }
+function toggleEmbedHeight(btn) {
+  const embed = btn.closest('.video-card__embed');
+  const iframe = embed.querySelector('.embed-iframe');
+  if (!iframe) return;
 
-    if (!height || height < 100) return;
-
-    const iframes = document.querySelectorAll('.embed-iframe');
-    iframes.forEach(iframe => {
-      try {
-        if (iframe.contentWindow === event.source) {
-          iframe.style.height = Math.ceil(height) + 16 + 'px'; // +16 padding
-          iframe.dataset.autoSized = 'true';
-        }
-      } catch (e) {}
-    });
-  });
-
-  // 2. MutationObserver: watch for new iframes added to the DOM
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach(m => {
-      m.addedNodes.forEach(node => {
-        if (node.nodeType !== 1) return;
-        const iframes = node.classList?.contains('embed-iframe')
-          ? [node]
-          : (node.querySelectorAll?.('.embed-iframe') || []);
-        iframes.forEach(iframe => attachIframeAutoResize(iframe));
-      });
-    });
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
-}
-
-function attachIframeAutoResize(iframe) {
-  if (iframe.dataset.resizeAttached) return;
-  iframe.dataset.resizeAttached = 'true';
-
-  iframe.addEventListener('load', () => {
-    // After load, poll a few times trying to read height
-    let attempts = 0;
-    const poll = setInterval(() => {
-      attempts++;
-      if (attempts > 10 || iframe.dataset.autoSized === 'true') {
-        clearInterval(poll);
-        return;
-      }
-      try {
-        // Try cross-origin (will fail for meta, but works for same-origin)
-        const h = iframe.contentDocument.body.scrollHeight;
-        if (h > 100) {
-          iframe.style.height = h + 16 + 'px';
-          iframe.dataset.autoSized = 'true';
-          clearInterval(poll);
-        }
-      } catch (e) {
-        // Cross-origin — rely on postMessage (already listening)
-      }
-    }, 800);
-  });
+  const isExpanded = iframe.dataset.expanded === 'true';
+  if (isExpanded) {
+    // Collapse back to default
+    iframe.style.height = '';
+    iframe.dataset.expanded = 'false';
+    btn.textContent = '⤓ 展開更多';
+  } else {
+    // Expand to show full content
+    iframe.style.height = '1600px';
+    iframe.dataset.expanded = 'true';
+    btn.textContent = '⤒ 收起';
+  }
 }
 
 // ===== LIKE / 推坑 =====
