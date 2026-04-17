@@ -17,8 +17,10 @@ let globalData = [];
 let currentFilter = '全部';
 
 // iOS 偵測（含 LINE, FB in-app browser）
+// 本地測試時可加 ?debug_ios=1 強制啟用 iOS 模式
 const isIOS = /iPad|iPhone|iPod|iOS/i.test(navigator.userAgent) 
-  || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  || new URLSearchParams(window.location.search).get('debug_ios') === '1';
 
 function isThreadsUrl(url) {
   return url && (url.includes('threads.net') || url.includes('threads.com'));
