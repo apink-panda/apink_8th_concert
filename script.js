@@ -15,6 +15,14 @@ const LIKE_DEBOUNCE_MS = 800; // 推坑 debounce
 // ===== STATE =====
 let globalData = [];
 let currentFilter = '全部';
+
+// iOS 偵測（含 LINE, FB in-app browser）
+const isIOS = /iPad|iPhone|iPod|iOS/i.test(navigator.userAgent) 
+  || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+function isThreadsUrl(url) {
+  return url && (url.includes('threads.net') || url.includes('threads.com'));
+}
 let isLoading = false;
 let adminPassword = '';
 let isAdminLoggedIn = false;
@@ -163,9 +171,14 @@ function renderCards(append = false) {
   renderGeneration++;
   const thisGeneration = renderGeneration;
 
-  const videos = currentFilter === '全部'
+  let videos = currentFilter === '全部'
     ? globalData
     : globalData.filter(v => v.sheet === currentFilter);
+
+  // iOS：跳過無縮圖的 Threads 影片（Meta 平台限制無法直接嵌入）
+  if (isIOS) {
+    videos = videos.filter(v => !isThreadsUrl(v.url) || v.thumbnail);
+  }
 
   if (!append) {
     $grid.querySelectorAll('.video-card, .empty-state').forEach(el => el.remove());
@@ -254,10 +267,8 @@ function generateEmbedHTML(url, thumbnail) {
   if (cleanUrl.includes('threads.net') || cleanUrl.includes('threads.com')) {
     const proxyUrl = `embed_proxy.html?type=threads&url=${encodeURIComponent(cleanUrl)}`;
     const uid = 'th_' + Math.random().toString(36).substr(2, 8);
-    // 強制比對包含 iOS 相關字眼，擴大涵蓋 LINE, FB in-app browser
-    const isIOS = /iPad|iPhone|iPod|iOS/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     
-    // iOS 無論有沒有縮圖，一律先擋下要求點擊 (lazyLoad)
+    // iOS 無論有沒有縮圖，一律先擋下要求點擊 (lazyLoad)（使用全域 isIOS）
     const lazyLoad = isIOS;
 
     const thumbStyle = thumbnail
