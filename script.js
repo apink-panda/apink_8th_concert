@@ -7,8 +7,7 @@
 // ===== CONFIGURATION =====
 // 🔧 把你的 Google Apps Script Web App URL 貼在這裡
 const MEMBERS = ['初瓏', '普美', '恩地', '南珠', '夏榮', '團體'];
-const API_URL = 'https://script.google.com/macros/s/AKfycbwcrmegWZSIiI0NdJg6WE7yvjcp-x3Ki0cVCOeQtmskNtTkN3_iIrMg2LyBIuewDknv/exec';
-
+const API_URL = '‘;https://script.google.com/macros/s/AKfycbz0MvV_Q6wYVl94NY74KTKjZ4Rd4CZBPpu6kcKYK6Za_Q-IeY51qVorVFSQ1o4-85mQ/exec
 const REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 分鐘
 const LIKE_DEBOUNCE_MS = 800; // 推坑 debounce
 
@@ -18,7 +17,7 @@ let currentFilter = '全部';
 
 // iOS 偵測（含 LINE, FB in-app browser）
 // 本地測試時可加 ?debug_ios=1 強制啟用 iOS 模式
-const isIOS = /iPad|iPhone|iPod|iOS/i.test(navigator.userAgent) 
+const isIOS = /iPad|iPhone|iPod|iOS/i.test(navigator.userAgent)
   || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
   || new URLSearchParams(window.location.search).get('debug_ios') === '1';
 
@@ -269,7 +268,7 @@ function generateEmbedHTML(url, thumbnail) {
   if (cleanUrl.includes('threads.net') || cleanUrl.includes('threads.com')) {
     const proxyUrl = `embed_proxy.html?type=threads&url=${encodeURIComponent(cleanUrl)}`;
     const uid = 'th_' + Math.random().toString(36).substr(2, 8);
-    
+
     // iOS 無論有沒有縮圖，一律先擋下要求點擊 (lazyLoad)（使用全域 isIOS）
     const lazyLoad = isIOS;
 
@@ -364,9 +363,9 @@ function initEmbedResizeListener() {
               if (placeholder) placeholder.style.display = 'none';
             }
           }
-        } catch (e) {}
+        } catch (e) { }
       });
-    } catch (e) {}
+    } catch (e) { }
   });
 }
 
