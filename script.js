@@ -24,6 +24,7 @@ let likeQueues = {}; // { `${sheet}_${id}`: { count, timeout } }
 let currentPage = 1;
 const ITEMS_PER_PAGE = 5;
 let renderGeneration = 0; // incremented each render to cancel stale staggered appends
+let embedUidCounter = 0;
 
 // ===== DOM REFS =====
 const $grid = document.getElementById('card-grid');
@@ -250,13 +251,13 @@ function generateEmbedHTML(url, thumbnail) {
     cleanUrl = urlObj.toString();
   } catch (e) { }
 
+  const isIOS = /iPad|iPhone|iPod|iOS/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
   // Threads — use embed_proxy for auto-height, with thumbnail placeholder
   if (cleanUrl.includes('threads.net') || cleanUrl.includes('threads.com')) {
     const proxyUrl = `embed_proxy.html?type=threads&url=${encodeURIComponent(cleanUrl)}`;
-    const uid = 'th_' + Math.random().toString(36).substr(2, 8);
-    // 強制比對包含 iOS 相關字眼，擴大涵蓋 LINE, FB in-app browser
-    const isIOS = /iPad|iPhone|iPod|iOS/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    
+    const uid = createEmbedUid('th');
+
     // iOS 無論有沒有縮圖，一律先擋下要求點擊 (lazyLoad)
     const lazyLoad = isIOS;
 
@@ -268,11 +269,11 @@ function generateEmbedHTML(url, thumbnail) {
     const placeholderClick = lazyLoad
       ? `onclick="loadEmbed(this, '${proxyUrl}')"`
       : '';
-    const placeholderCursor = lazyLoad ? 'cursor: pointer;' : 'pointer-events: none;';
+    const placeholderInteraction = lazyLoad ? 'cursor: pointer; pointer-events: auto;' : 'pointer-events: none;';
 
     return `
       <div class="embed-wrapper" id="${uid}">
-        <div class="embed-placeholder threads" style="${thumbStyle} ${placeholderCursor}" ${placeholderClick}>
+        <div class="embed-placeholder threads" style="${thumbStyle} ${placeholderInteraction}" ${placeholderClick}>
           ${lazyLoad ? '<div class="embed-placeholder__play">▶</div>' : '<div class="embed-placeholder__icon">🧵</div><div class="embed-placeholder__spinner"></div>'}
           <div class="embed-placeholder__label">${lazyLoad && !thumbnail ? '點擊載入 Threads' : (lazyLoad ? '' : 'Threads 貼文載入中...')}</div>
         </div>
@@ -288,11 +289,29 @@ function generateEmbedHTML(url, thumbnail) {
   // Instagram — use same-origin embed proxy (auto height detection via postMessage)
   if (cleanUrl.includes('instagram.com')) {
     const proxyUrl = `embed_proxy.html?type=instagram&url=${encodeURIComponent(cleanUrl)}`;
+    const uid = createEmbedUid('ig');
+    const lazyLoad = isIOS;
+    const thumbStyle = thumbnail
+      ? `background-image: url('${thumbnail}'); background-size: cover; background-position: center;`
+      : `background: linear-gradient(145deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%);`;
+    const iframeSrc = lazyLoad ? '' : proxyUrl;
+    const placeholderClick = lazyLoad
+      ? `onclick="loadEmbed(this, '${proxyUrl}')"`
+      : '';
+    const placeholderInteraction = lazyLoad ? 'cursor: pointer; pointer-events: auto;' : 'pointer-events: none;';
+
     return `
-      <iframe src="${proxyUrl}" class="embed-iframe ig-embed" data-post-url="${cleanUrl}"
-        frameborder="0" scrolling="no" allowtransparency="true" allowfullscreen
-        allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write">
-      </iframe>
+      <div class="embed-wrapper" id="${uid}">
+        <div class="embed-placeholder instagram" style="${thumbStyle} ${placeholderInteraction}" ${placeholderClick}>
+          ${lazyLoad ? '<div class="embed-placeholder__play">▶</div>' : '<div class="embed-placeholder__icon">📷</div><div class="embed-placeholder__spinner"></div>'}
+          <div class="embed-placeholder__label">${lazyLoad && !thumbnail ? '點擊載入 Instagram' : (lazyLoad ? '' : 'Instagram 貼文載入中...')}</div>
+        </div>
+        <iframe ${iframeSrc ? `src="${iframeSrc}"` : `data-src="${proxyUrl}"`} class="embed-iframe ig-embed" data-post-url="${cleanUrl}"
+          frameborder="0" scrolling="auto" allowtransparency="true" allowfullscreen
+          allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write"
+          style="opacity: 0; transition: opacity 0.4s ease;">
+        </iframe>
+      </div>
     `;
   }
 
@@ -309,6 +328,18 @@ function generateEmbedHTML(url, thumbnail) {
       <a class="link-preview__open" href="${cleanUrl}" target="_blank" rel="noopener">開啟連結 ↗</a>
     </div>
   `;
+}
+
+function createEmbedUid(prefix) {
+  if (window.crypto?.getRandomValues) {
+    const bytes = new Uint8Array(4);
+    window.crypto.getRandomValues(bytes);
+    const token = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+    return `${prefix}_${token}`;
+  }
+
+  embedUidCounter += 1;
+  return `${prefix}_${Date.now().toString(36)}_${embedUidCounter.toString(36)}`;
 }
 
 // iOS tap-to-load: set iframe src and switch from thumbnail to loading state
