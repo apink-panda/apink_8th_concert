@@ -214,7 +214,7 @@ function createVideoCard(video, index) {
   card.style.animationDelay = `${index * 0.06}s`;
   card.dataset.id = video.id;
 
-  const embedContent = generateEmbedHTML(video.url, video.thumbnail);
+  const embedContent = generateEmbedHTML(video.url);
   const timeAgo = formatTimeAgo(video.created_at);
 
   card.innerHTML = `
@@ -240,7 +240,7 @@ function createVideoCard(video, index) {
   return card;
 }
 
-function generateEmbedHTML(url, thumbnail) {
+function generateEmbedHTML(url) {
   if (!url) return '<div class="link-preview"><span class="link-preview__icon">❌</span><span class="link-preview__platform">無效連結</span></div>';
 
   let cleanUrl = url.trim();
@@ -250,29 +250,10 @@ function generateEmbedHTML(url, thumbnail) {
     cleanUrl = urlObj.toString();
   } catch (e) { }
 
-  // Threads — 縮圖優先：有縮圖時全平台都先顯示縮圖，點擊後隱藏並播放
+  // Threads — 直接載入 iframe
   if (cleanUrl.includes('threads.net') || cleanUrl.includes('threads.com')) {
     const proxyUrl = `embed_proxy.html?type=threads&url=${encodeURIComponent(cleanUrl)}`;
     const uid = 'th_' + Math.random().toString(36).substr(2, 8);
-
-    // ── 有縮圖：縮圖蓋在 iframe 上，點擊後隱藏縮圖並開始播放 ──
-    if (thumbnail) {
-      return `
-        <div class="embed-wrapper" id="${uid}">
-          <iframe data-src="${proxyUrl}" class="embed-iframe threads-embed" data-post-url="${cleanUrl}"
-            frameborder="0" scrolling="auto" allowtransparency="true" allowfullscreen
-            allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write"
-            style="opacity: 0; transition: opacity 0.5s ease;">
-          </iframe>
-          <div class="embed-thumbnail-overlay" onclick="loadEmbed(this, '${proxyUrl}')">
-            <img src="${thumbnail}" class="embed-thumb-img" alt="影片縮圖" />
-            <div class="embed-placeholder__play">▶</div>
-          </div>
-        </div>
-      `;
-    }
-
-    // ── 無縮圖：直接載入 iframe，顯示 loading spinner ──
     return `
       <div class="embed-wrapper" id="${uid}">
         <iframe src="${proxyUrl}" class="embed-iframe threads-embed" data-post-url="${cleanUrl}"
@@ -281,7 +262,6 @@ function generateEmbedHTML(url, thumbnail) {
           style="opacity: 0; transition: opacity 0.4s ease;">
         </iframe>
         <div class="embed-placeholder threads" style="pointer-events: none;">
-          <div class="embed-placeholder__icon">🧵</div>
           <div class="embed-placeholder__spinner"></div>
           <div class="embed-placeholder__label">Threads 貼文載入中...</div>
         </div>
@@ -313,18 +293,6 @@ function generateEmbedHTML(url, thumbnail) {
       <a class="link-preview__open" href="${cleanUrl}" target="_blank" rel="noopener">開啟連結 ↗</a>
     </div>
   `;
-}
-
-// 縮圖點擊：隱藏縮圖覆蓋層並開始播放 iframe
-function loadEmbed(overlay, proxyUrl) {
-  const wrapper = overlay.closest('.embed-wrapper');
-  const iframe = wrapper.querySelector('.embed-iframe');
-  if (!iframe) return;
-
-  overlay.style.pointerEvents = 'none';
-  iframe.src = proxyUrl;
-  overlay.classList.add('embed-thumbnail-overlay--hiding');
-  overlay.addEventListener('transitionend', () => overlay.remove(), { once: true });
 }
 
 function processEmbeds() {
