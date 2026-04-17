@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    background: transparent;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+  body { padding: 0; }
+  /* Ensure embed fills width */
+  iframe { max-width: 100% !important; }
+  blockquote { margin: 0 !important; }
+</style>
+</head>
+<body>
+<div id="embed-root"></div>
+
+<script>
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const postUrl = params.get('url');
+  const type = params.get('type'); // 'threads' or 'instagram'
+  const root = document.getElementById('embed-root');
+
+  if (!postUrl || !type) {
+    root.textContent = 'Missing parameters';
+    return;
+  }
+
+  let lastHeight = 0;
+
+  function reportHeight() {
+    // Check body, root, and any nested iframes created by embed.js
+    let h = Math.max(
+      document.body.scrollHeight,
+      document.body.offsetHeight,
+      root.scrollHeight,
+      root.offsetHeight
+    );
+
+    // embed.js creates iframes inside root — check their height too
+    const nestedIframes = root.querySelectorAll('iframe');
+    nestedIframes.forEach(f => {
+      const rect = f.getBoundingClientRect();
+      const bottom = rect.top + rect.height + window.scrollY;
+      if (bottom > h) h = Math.ceil(bottom);
+    });
+
+    if (h > 0 && h !== lastHeight) {
+      lastHeight = h;
+      window.parent.postMessage({
+        type: 'embed-resize',
+        height: h,
+        url: postUrl
+      }, '*');
+    }
+  }
+
+  // Poll for height changes (covers all cases including slow embed rendering)
+  setInterval(reportHeight, 300);
+
+  // Also use ResizeObserver for instant detection
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(reportHeight);
+    ro.observe(document.body);
+    ro.observe(root);
+  }
+
+  // Also use MutationObserver to catch embed.js creating new elements
+  const mo = new MutationObserver(reportHeight);
+  mo.observe(root, { childList: true, subtree: true, attributes: true });
+
+  // Report on load + delayed checks for slow embeds
+  window.addEventListener('load', () => {
+    setTimeout(reportHeight, 500);
+    setTimeout(reportHeight, 1500);
+    setTimeout(reportHeight, 3000);
+    setTimeout(reportHeight, 5000);
+    setTimeout(reportHeight, 8000);
+  });
+
+  if (type === 'threads') {
+    // Create Threads blockquote
+    const bq = document.createElement('blockquote');
+    bq.className = 'text-post-media';
+    bq.setAttribute('data-text-post-permalink', postUrl);
+    bq.setAttribute('data-text-post-version', '0');
+    bq.style.cssText = 'background:#FFF; border-width:1px; border-style:solid; border-color:#00000026; border-radius:16px; max-width:540px; margin:0 auto; min-width:270px; padding:0; width:99.375%;';
+    root.appendChild(bq);
+
+    // Load Threads embed.js
+    const script = document.createElement('script');
+    script.src = 'https://www.threads.net/embed.js';
+    script.async = true;
+    document.body.appendChild(script);
+
+  } else if (type === 'instagram') {
+    // Create Instagram blockquote
+    const bq = document.createElement('blockquote');
+    bq.className = 'instagram-media';
+    bq.setAttribute('data-instgrm-permalink', postUrl);
+    bq.setAttribute('data-instgrm-version', '14');
+    bq.setAttribute('data-instgrm-captioned', '');
+    bq.style.cssText = 'background:#FFF; border:0; border-radius:3px; box-shadow:0 0 1px 0 rgba(0,0,0,0.5),0 1px 10px 0 rgba(0,0,0,0.15); margin:0 auto; max-width:540px; min-width:270px; padding:0; width:99.375%;';
+    root.appendChild(bq);
+
+    // Load Instagram embed.js
+    const script = document.createElement('script');
+    script.src = 'https://www.instagram.com/embed.js';
+    script.async = true;
+    document.body.appendChild(script);
+  }
+})();
+</script>
+</body>
+</html>

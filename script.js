@@ -55,6 +55,7 @@ const $loadMoreBtn = document.getElementById('load-more-btn');
 document.addEventListener('DOMContentLoaded', () => {
   initTabs();
   initAddModal();
+  initEmbedResizeListener();
   initAdmin();
 
   if ($loadMoreBtn) {
@@ -219,7 +220,6 @@ function createVideoCard(video, index) {
   card.innerHTML = `
     <div class="video-card__embed">
       ${embedContent}
-      <button class="embed-expand-btn" onclick="toggleEmbedHeight(this)">⤓ 展開更多</button>
     </div>
     <div class="video-card__footer">
       <div class="video-card__info">
@@ -295,29 +295,22 @@ function generateEmbedHTML(url) {
     cleanUrl = urlObj.toString();
   } catch (e) { }
 
-  // Threads post — direct iframe (append /embed/ to the post URL)
+  // Threads post — use same-origin embed proxy for auto height detection
   if (cleanUrl.includes('threads.net') || cleanUrl.includes('threads.com')) {
-    let embedUrl = cleanUrl;
-    // Normalize to threads.net
-    embedUrl = embedUrl.replace('www.threads.com', 'www.threads.net')
-                       .replace('threads.com', 'threads.net');
-    if (!embedUrl.endsWith('/')) embedUrl += '/';
-    embedUrl += 'embed/';
+    const proxyUrl = `embed_proxy.html?type=threads&url=${encodeURIComponent(cleanUrl)}`;
     return `
-      <iframe src="${embedUrl}" class="embed-iframe threads-embed"
-        frameborder="0" scrolling="auto" allowtransparency="true">
+      <iframe src="${proxyUrl}" class="embed-iframe threads-embed" data-post-url="${cleanUrl}"
+        frameborder="0" scrolling="no" allowtransparency="true">
       </iframe>
     `;
   }
 
-  // Instagram — use direct iframe
+  // Instagram — use same-origin embed proxy for auto height detection
   if (cleanUrl.includes('instagram.com')) {
-    let embedUrl = cleanUrl;
-    if (!embedUrl.endsWith('/')) embedUrl += '/';
-    embedUrl += 'embed/captioned/';
+    const proxyUrl = `embed_proxy.html?type=instagram&url=${encodeURIComponent(cleanUrl)}`;
     return `
-      <iframe src="${embedUrl}" class="embed-iframe ig-embed"
-        frameborder="0" scrolling="auto" allowtransparency="true">
+      <iframe src="${proxyUrl}" class="embed-iframe ig-embed" data-post-url="${cleanUrl}"
+        frameborder="0" scrolling="no" allowtransparency="true">
       </iframe>
     `;
   }
@@ -341,23 +334,26 @@ function processEmbeds() {
   // Both Threads and IG now use direct iframes — no embed script needed
 }
 
-function toggleEmbedHeight(btn) {
-  const embed = btn.closest('.video-card__embed');
-  const iframe = embed.querySelector('.embed-iframe');
-  if (!iframe) return;
+function initEmbedResizeListener() {
+  window.addEventListener('message', (event) => {
+    // Only accept messages from our own origin (embed_proxy.html)
+    if (event.origin !== window.location.origin) return;
 
-  const isExpanded = iframe.dataset.expanded === 'true';
-  if (isExpanded) {
-    // Collapse back to default
-    iframe.style.height = '';
-    iframe.dataset.expanded = 'false';
-    btn.textContent = '⤓ 展開更多';
-  } else {
-    // Expand to show full content
-    iframe.style.height = '1600px';
-    iframe.dataset.expanded = 'true';
-    btn.textContent = '⤒ 收起';
-  }
+    try {
+      const data = event.data;
+      if (data?.type !== 'embed-resize' || !data.height) return;
+
+      // Find the iframe that sent this message
+      const iframes = document.querySelectorAll('.embed-iframe');
+      iframes.forEach(iframe => {
+        try {
+          if (iframe.contentWindow === event.source) {
+            iframe.style.height = data.height + 'px';
+          }
+        } catch (e) {}
+      });
+    } catch (e) {}
+  });
 }
 
 // ===== LIKE / 推坑 =====
