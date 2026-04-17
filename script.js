@@ -274,6 +274,24 @@ function generateEmbedHTML(url, thumbnail) {
 
     if (isIOS) console.log('[iOS thumb]', cleanUrl, '→', thumbnail || '(無縮圖)');
 
+    // iOS + 有縮圖：用 <img> 標籤依原始比例顯示，覆蓋播放按鈕
+    if (lazyLoad && thumbnail) {
+      return `
+        <div class="embed-wrapper" id="${uid}">
+          <div class="embed-placeholder-ios" onclick="loadEmbed(this, '${proxyUrl}')">
+            <img src="${thumbnail}" class="embed-thumb-img" alt="影片縮圖" />
+            <div class="embed-placeholder__play">▶</div>
+          </div>
+          <iframe data-src="${proxyUrl}" class="embed-iframe threads-embed" data-post-url="${cleanUrl}"
+            frameborder="0" scrolling="auto" allowtransparency="true" allowfullscreen
+            allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write"
+            style="display: none; opacity: 0; transition: opacity 0.4s ease;">
+          </iframe>
+        </div>
+      `;
+    }
+
+    // iOS 無縮圖 / 非 iOS：舊邏輯
     const thumbStyle = thumbnail
       ? `background-image: url('${thumbnail}'); background-size: cover; background-position: center;`
       : `background: linear-gradient(145deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);`;
@@ -282,7 +300,8 @@ function generateEmbedHTML(url, thumbnail) {
     const placeholderClick = lazyLoad
       ? `onclick="loadEmbed(this, '${proxyUrl}')"`
       : '';
-    const placeholderCursor = lazyLoad ? 'cursor: pointer;' : 'pointer-events: none;';
+    // pointer-events: auto 必須加，否則 CSS 的 pointer-events: none 會擋住點擊
+    const placeholderCursor = lazyLoad ? 'cursor: pointer; pointer-events: auto;' : '';
 
     return `
       <div class="embed-wrapper" id="${uid}">
@@ -329,15 +348,20 @@ function generateEmbedHTML(url, thumbnail) {
 function loadEmbed(placeholder, proxyUrl) {
   const wrapper = placeholder.closest('.embed-wrapper');
   const iframe = wrapper.querySelector('.embed-iframe');
-  if (!iframe || iframe.src) return; // already loading
+  if (!iframe || iframe.getAttribute('src')) return; // already loading
 
-  // Switch placeholder to loading state
-  placeholder.innerHTML = '<div class="embed-placeholder__spinner"></div><div class="embed-placeholder__label">載入中...</div>';
-  placeholder.style.cursor = 'default';
-  placeholder.style.pointerEvents = 'none';
-
-  // Start loading the iframe
-  iframe.src = proxyUrl;
+  if (placeholder.classList.contains('embed-placeholder-ios')) {
+    // iOS + 縮圖模式：隱藏縮圖區塊，顯示 iframe
+    placeholder.style.display = 'none';
+    iframe.style.display = '';
+    iframe.src = proxyUrl;
+  } else {
+    // iOS 無縮圖模式：切換為 loading 狀態
+    placeholder.innerHTML = '<div class="embed-placeholder__spinner"></div><div class="embed-placeholder__label">載入中...</div>';
+    placeholder.style.cursor = 'default';
+    placeholder.style.pointerEvents = 'none';
+    iframe.src = proxyUrl;
+  }
 }
 
 function processEmbeds() {
