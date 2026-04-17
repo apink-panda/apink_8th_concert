@@ -254,19 +254,28 @@ function generateEmbedHTML(url, thumbnail) {
   if (cleanUrl.includes('threads.net') || cleanUrl.includes('threads.com')) {
     const proxyUrl = `embed_proxy.html?type=threads&url=${encodeURIComponent(cleanUrl)}`;
     const uid = 'th_' + Math.random().toString(36).substr(2, 8);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const lazyLoad = isIOS && thumbnail; // iOS with thumbnail: tap to load
+
     const thumbStyle = thumbnail
       ? `background-image: url('${thumbnail}'); background-size: cover; background-position: center;`
       : `background: linear-gradient(145deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);`;
+
+    const iframeSrc = lazyLoad ? '' : proxyUrl;
+    const placeholderClick = lazyLoad
+      ? `onclick="loadEmbed(this, '${proxyUrl}')"`
+      : '';
+    const placeholderCursor = lazyLoad ? 'cursor: pointer;' : 'pointer-events: none;';
+
     return `
       <div class="embed-wrapper" id="${uid}">
-        <div class="embed-placeholder threads" style="${thumbStyle}">
+        <div class="embed-placeholder threads" style="${thumbStyle} ${placeholderCursor}" ${placeholderClick}>
           ${thumbnail ? '<div class="embed-placeholder__play">▶</div>' : '<div class="embed-placeholder__icon">🧵</div><div class="embed-placeholder__spinner"></div>'}
           <div class="embed-placeholder__label">${thumbnail ? '' : 'Threads 貼文載入中...'}</div>
         </div>
-        <iframe src="${proxyUrl}" class="embed-iframe threads-embed" data-post-url="${cleanUrl}"
+        <iframe ${iframeSrc ? `src="${iframeSrc}"` : `data-src="${proxyUrl}"`} class="embed-iframe threads-embed" data-post-url="${cleanUrl}"
           frameborder="0" scrolling="auto" allowtransparency="true" allowfullscreen
           allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write"
-          onload="this.parentElement.querySelector('.embed-placeholder').style.display='none'; this.style.opacity='1';"
           style="opacity: 0; transition: opacity 0.4s ease;">
         </iframe>
       </div>
@@ -299,25 +308,45 @@ function generateEmbedHTML(url, thumbnail) {
   `;
 }
 
+// iOS tap-to-load: set iframe src and switch from thumbnail to loading state
+function loadEmbed(placeholder, proxyUrl) {
+  const wrapper = placeholder.closest('.embed-wrapper');
+  const iframe = wrapper.querySelector('.embed-iframe');
+  if (!iframe || iframe.src) return; // already loading
+
+  // Switch placeholder to loading state
+  placeholder.innerHTML = '<div class="embed-placeholder__spinner"></div><div class="embed-placeholder__label">載入中...</div>';
+  placeholder.style.cursor = 'default';
+  placeholder.style.pointerEvents = 'none';
+
+  // Start loading the iframe
+  iframe.src = proxyUrl;
+}
+
 function processEmbeds() {
   // Both Threads and IG now use direct iframes — no embed script needed
 }
 
 function initEmbedResizeListener() {
   window.addEventListener('message', (event) => {
-    // Only accept messages from our own origin (embed_proxy.html)
     if (event.origin !== window.location.origin) return;
 
     try {
       const data = event.data;
       if (data?.type !== 'embed-resize' || !data.height) return;
 
-      // Find the iframe that sent this message
       const iframes = document.querySelectorAll('.embed-iframe');
       iframes.forEach(iframe => {
         try {
           if (iframe.contentWindow === event.source) {
             iframe.style.height = data.height + 'px';
+
+            // Show the iframe and hide the placeholder (content is now rendered)
+            if (iframe.style.opacity === '0') {
+              iframe.style.opacity = '1';
+              const placeholder = iframe.parentElement?.querySelector('.embed-placeholder');
+              if (placeholder) placeholder.style.display = 'none';
+            }
           }
         } catch (e) {}
       });
