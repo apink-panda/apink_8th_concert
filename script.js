@@ -15,15 +15,6 @@ const LIKE_DEBOUNCE_MS = 800; // 推坑 debounce
 let globalData = [];
 let currentFilter = '全部';
 
-// iOS 偵測（含 LINE, FB in-app browser）
-// 本地測試時可加 ?debug_ios=1 強制啟用 iOS 模式
-const isIOS = /iPad|iPhone|iPod|iOS/i.test(navigator.userAgent)
-  || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  || new URLSearchParams(window.location.search).get('debug_ios') === '1';
-
-function isThreadsUrl(url) {
-  return url && (url.includes('threads.net') || url.includes('threads.com'));
-}
 let isLoading = false;
 let adminPassword = '';
 let isAdminLoggedIn = false;
@@ -176,11 +167,6 @@ function renderCards(append = false) {
     ? globalData
     : globalData.filter(v => v.sheet === currentFilter);
 
-  // iOS：跳過無縮圖的 Threads 影片（Meta 平台限制無法直接嵌入）
-  if (isIOS) {
-    videos = videos.filter(v => !isThreadsUrl(v.url) || v.thumbnail);
-  }
-
   if (!append) {
     $grid.querySelectorAll('.video-card, .empty-state').forEach(el => el.remove());
   }
@@ -269,7 +255,7 @@ function generateEmbedHTML(url, thumbnail) {
     const proxyUrl = `embed_proxy.html?type=threads&url=${encodeURIComponent(cleanUrl)}`;
     const uid = 'th_' + Math.random().toString(36).substr(2, 8);
 
-    // ── 有縮圖（所有平台）：縮圖蓋在 iframe 上，點擊後隱藏縮圖並開始播放 ──
+    // ── 有縮圖：縮圖蓋在 iframe 上，點擊後隱藏縮圖並開始播放 ──
     if (thumbnail) {
       return `
         <div class="embed-wrapper" id="${uid}">
@@ -286,25 +272,7 @@ function generateEmbedHTML(url, thumbnail) {
       `;
     }
 
-    // ── 無縮圖 + iOS：顯示漸層背景，要求點擊後才載入 ──
-    if (isIOS) {
-      return `
-        <div class="embed-wrapper" id="${uid}">
-          <div class="embed-placeholder threads" style="cursor: pointer; pointer-events: auto; min-height: 200px;"
-               onclick="loadEmbed(this, '${proxyUrl}')">
-            <div class="embed-placeholder__play">▶</div>
-            <div class="embed-placeholder__label">點擊載入 Threads</div>
-          </div>
-          <iframe data-src="${proxyUrl}" class="embed-iframe threads-embed" data-post-url="${cleanUrl}"
-            frameborder="0" scrolling="auto" allowtransparency="true" allowfullscreen
-            allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write"
-            style="opacity: 0; transition: opacity 0.4s ease;">
-          </iframe>
-        </div>
-      `;
-    }
-
-    // ── 無縮圖 + 非 iOS：直接載入 iframe，顯示 loading spinner ──
+    // ── 無縮圖：直接載入 iframe，顯示 loading spinner ──
     return `
       <div class="embed-wrapper" id="${uid}">
         <iframe src="${proxyUrl}" class="embed-iframe threads-embed" data-post-url="${cleanUrl}"
@@ -353,20 +321,10 @@ function loadEmbed(overlay, proxyUrl) {
   const iframe = wrapper.querySelector('.embed-iframe');
   if (!iframe) return;
 
-  // 防止重複點擊
   overlay.style.pointerEvents = 'none';
-
-  if (overlay.classList.contains('embed-thumbnail-overlay')) {
-    // 有縮圖模式（全平台）：載入 iframe，縮圖淡出後移除
-    iframe.src = proxyUrl;
-    overlay.classList.add('embed-thumbnail-overlay--hiding');
-    overlay.addEventListener('transitionend', () => overlay.remove(), { once: true });
-  } else {
-    // iOS 無縮圖模式：切換為 loading 狀態
-    overlay.innerHTML = '<div class="embed-placeholder__spinner"></div><div class="embed-placeholder__label">載入中...</div>';
-    overlay.style.cursor = 'default';
-    iframe.src = proxyUrl;
-  }
+  iframe.src = proxyUrl;
+  overlay.classList.add('embed-thumbnail-overlay--hiding');
+  overlay.addEventListener('transitionend', () => overlay.remove(), { once: true });
 }
 
 function processEmbeds() {
