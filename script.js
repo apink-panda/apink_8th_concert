@@ -300,7 +300,8 @@ function generateEmbedHTML(url) {
     const proxyUrl = `embed_proxy.html?type=threads&url=${encodeURIComponent(cleanUrl)}`;
     return `
       <iframe src="${proxyUrl}" class="embed-iframe threads-embed" data-post-url="${cleanUrl}"
-        frameborder="0" scrolling="no" allowtransparency="true">
+        frameborder="0" scrolling="no" allowtransparency="true" allowfullscreen
+        allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write">
       </iframe>
     `;
   }
@@ -310,7 +311,8 @@ function generateEmbedHTML(url) {
     const proxyUrl = `embed_proxy.html?type=instagram&url=${encodeURIComponent(cleanUrl)}`;
     return `
       <iframe src="${proxyUrl}" class="embed-iframe ig-embed" data-post-url="${cleanUrl}"
-        frameborder="0" scrolling="no" allowtransparency="true">
+        frameborder="0" scrolling="no" allowtransparency="true" allowfullscreen
+        allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write">
       </iframe>
     `;
   }
