@@ -24,6 +24,7 @@ let likeQueues = {}; // { `${sheet}_${id}`: { count, timeout } }
 let currentPage = 1;
 const ITEMS_PER_PAGE = 5;
 let renderGeneration = 0; // incremented each render to cancel stale staggered appends
+let embedUidCounter = 0;
 
 // ===== DOM REFS =====
 const $grid = document.getElementById('card-grid');
@@ -255,7 +256,7 @@ function generateEmbedHTML(url, thumbnail) {
   // Threads — use embed_proxy for auto-height, with thumbnail placeholder
   if (cleanUrl.includes('threads.net') || cleanUrl.includes('threads.com')) {
     const proxyUrl = `embed_proxy.html?type=threads&url=${encodeURIComponent(cleanUrl)}`;
-    const uid = 'th_' + Math.random().toString(36).substr(2, 8);
+    const uid = createEmbedUid('th');
 
     // iOS 無論有沒有縮圖，一律先擋下要求點擊 (lazyLoad)
     const lazyLoad = isIOS;
@@ -288,7 +289,7 @@ function generateEmbedHTML(url, thumbnail) {
   // Instagram — use same-origin embed proxy (auto height detection via postMessage)
   if (cleanUrl.includes('instagram.com')) {
     const proxyUrl = `embed_proxy.html?type=instagram&url=${encodeURIComponent(cleanUrl)}`;
-    const uid = 'ig_' + Math.random().toString(36).substr(2, 8);
+    const uid = createEmbedUid('ig');
     const lazyLoad = isIOS;
     const thumbStyle = thumbnail
       ? `background-image: url('${thumbnail}'); background-size: cover; background-position: center;`
@@ -327,6 +328,18 @@ function generateEmbedHTML(url, thumbnail) {
       <a class="link-preview__open" href="${cleanUrl}" target="_blank" rel="noopener">開啟連結 ↗</a>
     </div>
   `;
+}
+
+function createEmbedUid(prefix) {
+  if (window.crypto?.getRandomValues) {
+    const bytes = new Uint8Array(4);
+    window.crypto.getRandomValues(bytes);
+    const token = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+    return `${prefix}_${token}`;
+  }
+
+  embedUidCounter += 1;
+  return `${prefix}_${Date.now().toString(36)}_${embedUidCounter.toString(36)}`;
 }
 
 // iOS tap-to-load: set iframe src and switch from thumbnail to loading state
