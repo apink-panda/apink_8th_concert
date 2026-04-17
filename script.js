@@ -272,6 +272,8 @@ function generateEmbedHTML(url, thumbnail) {
     // iOS 無論有沒有縮圖，一律先擋下要求點擊 (lazyLoad)（使用全域 isIOS）
     const lazyLoad = isIOS;
 
+    if (isIOS) console.log('[iOS thumb]', cleanUrl, '→', thumbnail || '(無縮圖)');
+
     const thumbStyle = thumbnail
       ? `background-image: url('${thumbnail}'); background-size: cover; background-position: center;`
       : `background: linear-gradient(145deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);`;
