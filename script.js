@@ -264,56 +264,59 @@ function generateEmbedHTML(url, thumbnail) {
     cleanUrl = urlObj.toString();
   } catch (e) { }
 
-  // Threads — use embed_proxy for auto-height, with thumbnail placeholder
+  // Threads — 縮圖優先：有縮圖時全平台都先顯示縮圖，點擊後隱藏並播放
   if (cleanUrl.includes('threads.net') || cleanUrl.includes('threads.com')) {
     const proxyUrl = `embed_proxy.html?type=threads&url=${encodeURIComponent(cleanUrl)}`;
     const uid = 'th_' + Math.random().toString(36).substr(2, 8);
 
-    // iOS 無論有沒有縮圖，一律先擋下要求點擊 (lazyLoad)（使用全域 isIOS）
-    const lazyLoad = isIOS;
-
-    if (isIOS) console.log('[iOS thumb]', cleanUrl, '→', thumbnail || '(無縮圖)');
-
-    // iOS + 有縮圖：用 <img> 標籤依原始比例顯示，覆蓋播放按鈕
-    if (lazyLoad && thumbnail) {
+    // ── 有縮圖（所有平台）：縮圖蓋在 iframe 上，點擊後隱藏縮圖並開始播放 ──
+    if (thumbnail) {
       return `
         <div class="embed-wrapper" id="${uid}">
-          <div class="embed-placeholder-ios" onclick="loadEmbed(this, '${proxyUrl}')">
+          <iframe data-src="${proxyUrl}" class="embed-iframe threads-embed" data-post-url="${cleanUrl}"
+            frameborder="0" scrolling="auto" allowtransparency="true" allowfullscreen
+            allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write"
+            style="opacity: 0; transition: opacity 0.5s ease;">
+          </iframe>
+          <div class="embed-thumbnail-overlay" onclick="loadEmbed(this, '${proxyUrl}')">
             <img src="${thumbnail}" class="embed-thumb-img" alt="影片縮圖" />
             <div class="embed-placeholder__play">▶</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ── 無縮圖 + iOS：顯示漸層背景，要求點擊後才載入 ──
+    if (isIOS) {
+      return `
+        <div class="embed-wrapper" id="${uid}">
+          <div class="embed-placeholder threads" style="cursor: pointer; pointer-events: auto; min-height: 200px;"
+               onclick="loadEmbed(this, '${proxyUrl}')">
+            <div class="embed-placeholder__play">▶</div>
+            <div class="embed-placeholder__label">點擊載入 Threads</div>
           </div>
           <iframe data-src="${proxyUrl}" class="embed-iframe threads-embed" data-post-url="${cleanUrl}"
             frameborder="0" scrolling="auto" allowtransparency="true" allowfullscreen
             allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write"
-            style="display: none; opacity: 0; transition: opacity 0.4s ease;">
+            style="opacity: 0; transition: opacity 0.4s ease;">
           </iframe>
         </div>
       `;
     }
 
-    // iOS 無縮圖 / 非 iOS：舊邏輯
-    const thumbStyle = thumbnail
-      ? `background-image: url('${thumbnail}'); background-size: cover; background-position: center;`
-      : `background: linear-gradient(145deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);`;
-
-    const iframeSrc = lazyLoad ? '' : proxyUrl;
-    const placeholderClick = lazyLoad
-      ? `onclick="loadEmbed(this, '${proxyUrl}')"`
-      : '';
-    // pointer-events: auto 必須加，否則 CSS 的 pointer-events: none 會擋住點擊
-    const placeholderCursor = lazyLoad ? 'cursor: pointer; pointer-events: auto;' : '';
-
+    // ── 無縮圖 + 非 iOS：直接載入 iframe，顯示 loading spinner ──
     return `
       <div class="embed-wrapper" id="${uid}">
-        <div class="embed-placeholder threads" style="${thumbStyle} ${placeholderCursor}" ${placeholderClick}>
-          ${lazyLoad ? '<div class="embed-placeholder__play">▶</div>' : '<div class="embed-placeholder__icon">🧵</div><div class="embed-placeholder__spinner"></div>'}
-          <div class="embed-placeholder__label">${lazyLoad && !thumbnail ? '點擊載入 Threads' : (lazyLoad ? '' : 'Threads 貼文載入中...')}</div>
-        </div>
-        <iframe ${iframeSrc ? `src="${iframeSrc}"` : `data-src="${proxyUrl}"`} class="embed-iframe threads-embed" data-post-url="${cleanUrl}"
+        <iframe src="${proxyUrl}" class="embed-iframe threads-embed" data-post-url="${cleanUrl}"
           frameborder="0" scrolling="auto" allowtransparency="true" allowfullscreen
           allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write"
           style="opacity: 0; transition: opacity 0.4s ease;">
         </iframe>
+        <div class="embed-placeholder threads" style="pointer-events: none;">
+          <div class="embed-placeholder__icon">🧵</div>
+          <div class="embed-placeholder__spinner"></div>
+          <div class="embed-placeholder__label">Threads 貼文載入中...</div>
+        </div>
       </div>
     `;
   }
@@ -344,22 +347,24 @@ function generateEmbedHTML(url, thumbnail) {
   `;
 }
 
-// iOS tap-to-load: set iframe src and switch from thumbnail to loading state
-function loadEmbed(placeholder, proxyUrl) {
-  const wrapper = placeholder.closest('.embed-wrapper');
+// 縮圖點擊：隱藏縮圖覆蓋層並開始播放 iframe
+function loadEmbed(overlay, proxyUrl) {
+  const wrapper = overlay.closest('.embed-wrapper');
   const iframe = wrapper.querySelector('.embed-iframe');
-  if (!iframe || iframe.getAttribute('src')) return; // already loading
+  if (!iframe) return;
 
-  if (placeholder.classList.contains('embed-placeholder-ios')) {
-    // iOS + 縮圖模式：隱藏縮圖區塊，顯示 iframe
-    placeholder.style.display = 'none';
-    iframe.style.display = '';
+  // 防止重複點擊
+  overlay.style.pointerEvents = 'none';
+
+  if (overlay.classList.contains('embed-thumbnail-overlay')) {
+    // 有縮圖模式（全平台）：載入 iframe，縮圖淡出後移除
     iframe.src = proxyUrl;
+    overlay.classList.add('embed-thumbnail-overlay--hiding');
+    overlay.addEventListener('transitionend', () => overlay.remove(), { once: true });
   } else {
     // iOS 無縮圖模式：切換為 loading 狀態
-    placeholder.innerHTML = '<div class="embed-placeholder__spinner"></div><div class="embed-placeholder__label">載入中...</div>';
-    placeholder.style.cursor = 'default';
-    placeholder.style.pointerEvents = 'none';
+    overlay.innerHTML = '<div class="embed-placeholder__spinner"></div><div class="embed-placeholder__label">載入中...</div>';
+    overlay.style.cursor = 'default';
     iframe.src = proxyUrl;
   }
 }
