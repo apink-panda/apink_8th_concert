@@ -214,7 +214,7 @@ function createVideoCard(video, index) {
   card.style.animationDelay = `${index * 0.06}s`;
   card.dataset.id = video.id;
 
-  const embedContent = generateEmbedHTML(video.url);
+  const embedContent = generateEmbedHTML(video.url, video.thumbnail);
   const timeAgo = formatTimeAgo(video.created_at);
 
   card.innerHTML = `
@@ -240,7 +240,7 @@ function createVideoCard(video, index) {
   return card;
 }
 
-function generateEmbedHTML(url) {
+function generateEmbedHTML(url, thumbnail) {
   if (!url) return '<div class="link-preview"><span class="link-preview__icon">❌</span><span class="link-preview__platform">無效連結</span></div>';
 
   let cleanUrl = url.trim();
@@ -250,18 +250,30 @@ function generateEmbedHTML(url) {
     cleanUrl = urlObj.toString();
   } catch (e) { }
 
-  // Threads post — use same-origin embed proxy for auto height detection
+  // Threads — use embed_proxy for auto-height, with thumbnail placeholder
   if (cleanUrl.includes('threads.net') || cleanUrl.includes('threads.com')) {
     const proxyUrl = `embed_proxy.html?type=threads&url=${encodeURIComponent(cleanUrl)}`;
+    const uid = 'th_' + Math.random().toString(36).substr(2, 8);
+    const thumbStyle = thumbnail
+      ? `background-image: url('${thumbnail}'); background-size: cover; background-position: center;`
+      : `background: linear-gradient(145deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);`;
     return `
-      <iframe src="${proxyUrl}" class="embed-iframe threads-embed" data-post-url="${cleanUrl}"
-        frameborder="0" scrolling="no" allowtransparency="true" allowfullscreen
-        allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write">
-      </iframe>
+      <div class="embed-wrapper" id="${uid}">
+        <div class="embed-placeholder threads" style="${thumbStyle}">
+          ${thumbnail ? '<div class="embed-placeholder__play">▶</div>' : '<div class="embed-placeholder__icon">🧵</div><div class="embed-placeholder__spinner"></div>'}
+          <div class="embed-placeholder__label">${thumbnail ? '' : 'Threads 貼文載入中...'}</div>
+        </div>
+        <iframe src="${proxyUrl}" class="embed-iframe threads-embed" data-post-url="${cleanUrl}"
+          frameborder="0" scrolling="auto" allowtransparency="true" allowfullscreen
+          allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write"
+          onload="this.parentElement.querySelector('.embed-placeholder').style.display='none'; this.style.opacity='1';"
+          style="opacity: 0; transition: opacity 0.4s ease;">
+        </iframe>
+      </div>
     `;
   }
 
-  // Instagram — use same-origin embed proxy for auto height detection
+  // Instagram — use same-origin embed proxy (auto height detection via postMessage)
   if (cleanUrl.includes('instagram.com')) {
     const proxyUrl = `embed_proxy.html?type=instagram&url=${encodeURIComponent(cleanUrl)}`;
     return `
