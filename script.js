@@ -45,8 +45,6 @@ const $adminPasswordInput = document.getElementById('admin-password');
 const $adminLoginBtn = document.getElementById('admin-login-btn');
 const $adminPanel = document.getElementById('admin-panel');
 const $adminClose = document.getElementById('admin-close');
-const $reviewToggle = document.getElementById('review-toggle');
-const $reviewStatusText = document.getElementById('review-status-text');
 const $pendingList = document.getElementById('pending-list');
 const $toastContainer = document.getElementById('toast-container');
 const $loadMoreBtn = document.getElementById('load-more-btn');
@@ -223,6 +221,7 @@ function createVideoCard(video, index) {
 
   const embedContent = generateEmbedHTML(video.url);
   const timeAgo = formatTimeAgo(video.created_at);
+  const pendingBadge = video.status === 'pending' ? '<span class="video-card__pending-badge">待審核</span>' : '';
 
   card.innerHTML = `
     <div class="video-card__embed">
@@ -233,14 +232,18 @@ function createVideoCard(video, index) {
         <div class="video-card__author">
           <span style="font-weight: 800; color: var(--pink-start); margin-right: 6px; font-size: 1.1rem; font-style: italic;" class="rank-num">#${index + 1}</span>
           <span style="font-size: 0.8rem; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; margin-right: 6px;">${escapeHtml(video.sheet)}</span>
+          ${pendingBadge}
           📎 ${escapeHtml(video.submitted_by || '匿名')}
         </div>
         <div class="video-card__time">${timeAgo}</div>
       </div>
-      <button class="like-btn" data-id="${video.id}" data-sheet="${video.sheet}" onclick="handleLike(this)">
-        <span class="like-btn__icon">❤️</span>
-        <span class="like-btn__count">${video.likes || 0}</span>
-      </button>
+      <div class="video-card__actions">
+        <button class="like-btn" data-id="${video.id}" data-sheet="${video.sheet}" onclick="handleLike(this)">
+          <span class="like-btn__icon">❤️</span>
+          <span class="like-btn__count">${video.likes || 0}</span>
+        </button>
+        <button class="report-btn" data-id="${video.id}" data-sheet="${video.sheet}" onclick="handleReport(this)" title="檢舉不當內容">🚩</button>
+      </div>
     </div>
   `;
 
@@ -497,7 +500,7 @@ async function handleAddSubmit() {
       likes: 0,
       created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
       submitted_by: nickname || '匿名',
-      status: 'approved',
+      status: 'pending',
       sheet: sheet
     };
 
@@ -556,8 +559,6 @@ function initAdmin() {
   $adminClose.addEventListener('click', () => {
     $adminPanel.classList.remove('active');
   });
-
-  $reviewToggle.addEventListener('click', handleReviewToggle);
 }
 
 async function handleAdminLogin() {
@@ -578,59 +579,14 @@ async function handleAdminLogin() {
 
 async function openAdminPanel() {
   $adminPanel.classList.add('active');
-
-  // Load settings
-  try {
-    const res = await fetch(`${API_URL}?action=getSettings`);
-    const settings = await res.json();
-
-    const isOn = settings.review_mode === true;
-    $reviewToggle.classList.toggle('on', isOn);
-    $reviewToggle.setAttribute('aria-checked', isOn);
-    $reviewStatusText.textContent = isOn
-      ? '開啟中 — 用戶提交的影片需審核後才上架'
-      : '關閉中 — 用戶提交的影片會直接上架';
-  } catch (err) {
-    console.error('載入設定失敗:', err);
-  }
-
-  // Load pending items
-  loadPendingItems();
+  loadAdminItems();
 }
 
-async function handleReviewToggle() {
-  try {
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'toggleReview',
-        password: adminPassword
-      })
-    });
-
-    // Toggle UI optimistically
-    const isCurrentlyOn = $reviewToggle.classList.contains('on');
-    const newIsOn = !isCurrentlyOn;
-    $reviewToggle.classList.toggle('on', newIsOn);
-    $reviewToggle.setAttribute('aria-checked', newIsOn);
-    $reviewStatusText.textContent = newIsOn
-      ? '開啟中 — 用戶提交的影片需審核後才上架'
-      : '關閉中 — 用戶提交的影片會直接上架';
-
-    showToast(`審核模式已${newIsOn ? '開啟' : '關閉'}`, 'info');
-  } catch (err) {
-    console.error('切換審核模式失敗:', err);
-    showToast('操作失敗', 'error');
-  }
-}
-
-async function loadPendingItems() {
-  $pendingList.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><span>載入待審核項目...</span></div>';
+async function loadAdminItems() {
+  $pendingList.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><span>載入管理項目...</span></div>';
 
   try {
-    const res = await fetch(`${API_URL}?action=getPending&password=${encodeURIComponent(adminPassword)}`);
+    const res = await fetch(`${API_URL}?action=getAdminList&password=${encodeURIComponent(adminPassword)}`);
     const result = await res.json();
 
     if (result.error) {
@@ -639,42 +595,96 @@ async function loadPendingItems() {
       return;
     }
 
+    const { pending, reported } = result.data;
     let html = '';
     let totalPending = 0;
+    let totalReported = 0;
 
+    // --- 待審核區 ---
+    html += '<h3 style="color: var(--warning); font-size: 1.1rem; margin-bottom: 12px;">📋 待審核影片</h3>';
     MEMBERS.forEach(member => {
-      const items = result.data[member] || [];
+      const items = pending[member] || [];
       if (items.length === 0) return;
-
       totalPending += items.length;
-
-      html += `
-        <div class="pending-section">
-          <div class="pending-section__title">${member}（${items.length} 筆待審核）</div>
-          ${items.map(item => `
-            <div class="pending-item" id="pending-${item.id}">
-              <div class="pending-item__info">
-                <a class="pending-item__url" href="${item.url}" target="_blank" rel="noopener">${item.url}</a>
-                <div class="pending-item__meta">${item.submitted_by || '匿名'} · ${item.created_at}</div>
-              </div>
-              <div class="pending-item__actions">
-                <button class="btn-approve" onclick="handleApprove('${member}', '${item.id}')">✓ 通過</button>
-                <button class="btn-reject" onclick="handleReject('${member}', '${item.id}')">✕ 拒絕</button>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      `;
+      html += renderAdminSection(member, items, '待審核', 'pending');
     });
-
     if (totalPending === 0) {
-      html = '<div class="empty-state"><span class="empty-state__icon">✅</span><span class="empty-state__text">沒有待審核的影片</span></div>';
+      html += '<div class="empty-state" style="padding: 20px 0;"><span class="empty-state__icon">✅</span><span class="empty-state__text">沒有待審核的影片</span></div>';
+    }
+
+    // --- 被檢舉區 ---
+    html += '<h3 style="color: var(--danger); font-size: 1.1rem; margin: 24px 0 12px;">🚩 被檢舉影片</h3>';
+    MEMBERS.forEach(member => {
+      const items = reported[member] || [];
+      if (items.length === 0) return;
+      totalReported += items.length;
+      html += renderAdminSection(member, items, '被檢舉', 'reported');
+    });
+    if (totalReported === 0) {
+      html += '<div class="empty-state" style="padding: 20px 0;"><span class="empty-state__icon">✅</span><span class="empty-state__text">沒有被檢舉的影片</span></div>';
     }
 
     $pendingList.innerHTML = html;
   } catch (err) {
-    console.error('載入待審核項目失敗:', err);
+    console.error('載入管理項目失敗:', err);
     $pendingList.innerHTML = '<div class="empty-state"><span class="empty-state__text">載入失敗</span></div>';
+  }
+}
+
+function renderAdminSection(member, items, label, type) {
+  const titleColor = type === 'reported' ? 'var(--danger)' : 'var(--warning)';
+  return `
+    <div class="pending-section">
+      <div class="pending-section__title" style="color: ${titleColor}">${member}（${items.length} 筆${label}）</div>
+      ${items.map(item => `
+        <div class="pending-item" id="pending-${item.id}">
+          <div class="pending-item__info">
+            <a class="pending-item__url" href="${item.url}" target="_blank" rel="noopener">${item.url}</a>
+            <div class="pending-item__meta">
+              ${item.submitted_by || '匿名'} · ${item.created_at}
+              ${item.reports > 0 ? ` · <span style="color: var(--danger);">🚩 ${item.reports} 次檢舉</span>` : ''}
+            </div>
+          </div>
+          <div class="pending-item__actions">
+            <button class="btn-approve" onclick="handleApprove('${member}', '${item.id}')">✓ 通過</button>
+            <button class="btn-reject" onclick="handleReject('${member}', '${item.id}')">✕ 拒絕</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ---- 檢舉 ----
+async function handleReport(btn) {
+  const id = btn.dataset.id;
+  const sheet = btn.dataset.sheet;
+
+  // localStorage 防重複
+  const reportedKey = 'reported_ids';
+  const reportedIds = JSON.parse(localStorage.getItem(reportedKey) || '[]');
+  if (reportedIds.includes(id)) {
+    showToast('你已經檢舉過這個影片了', 'info');
+    return;
+  }
+
+  btn.disabled = true;
+  try {
+    await fetch(API_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'report', sheet, id })
+    });
+
+    reportedIds.push(id);
+    localStorage.setItem(reportedKey, JSON.stringify(reportedIds));
+    showToast('已檢舉，感謝回報', 'success');
+    btn.style.opacity = '0.3';
+  } catch (err) {
+    console.error('檢舉失敗:', err);
+    showToast('檢舉失敗', 'error');
+    btn.disabled = false;
   }
 }
 
@@ -703,7 +713,7 @@ async function handleApprove(sheet, id) {
     // Reload data after a short delay
     setTimeout(() => {
       loadAllData();
-      loadPendingItems();
+      loadAdminItems();
     }, 1500);
   } catch (err) {
     showToast('操作失敗', 'error');
@@ -732,7 +742,7 @@ async function handleReject(sheet, id) {
 
     showToast('已拒絕', 'info');
 
-    setTimeout(() => loadPendingItems(), 1500);
+    setTimeout(() => loadAdminItems(), 1500);
   } catch (err) {
     showToast('操作失敗', 'error');
   }

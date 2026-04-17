@@ -944,57 +944,41 @@ body {
   color: var(--text-primary);
 }
 
-.review-toggle {
+/* ---- Pending Badge & Report Button ---- */
+.video-card__pending-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #F59E0B, #D97706);
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.video-card__actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  background: var(--bg-card);
+  gap: var(--spacing-sm);
+}
+
+.report-btn {
+  padding: 6px 8px;
+  font-size: 0.85rem;
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border-glass);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-lg);
-  margin-bottom: var(--spacing-xl);
-}
-
-.review-toggle__label {
-  font-size: 0.95rem;
-  font-weight: 500;
-}
-
-.review-toggle__desc {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  margin-top: 2px;
-}
-
-.toggle-switch {
-  position: relative;
-  width: 52px;
-  height: 28px;
-  background: rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-full);
   cursor: pointer;
-  transition: background var(--transition-base);
-  flex-shrink: 0;
+  transition: all var(--transition-fast);
+  opacity: 0.5;
+  line-height: 1;
 }
 
-.toggle-switch.on {
-  background: linear-gradient(135deg, var(--pink-start), var(--pink-end));
-}
-
-.toggle-switch__knob {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 22px;
-  height: 22px;
-  background: #fff;
-  border-radius: 50%;
-  transition: transform var(--transition-base);
-  box-shadow: var(--shadow-sm);
-}
-
-.toggle-switch.on .toggle-switch__knob {
-  transform: translateX(24px);
+.report-btn:hover {
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.15);
+  border-color: var(--danger);
 }
 
 .pending-section {
