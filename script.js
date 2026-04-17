@@ -97,6 +97,7 @@ function initTabs() {
       btn.classList.add('active');
       currentFilter = sheet;
       currentPage = 1;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       renderCards();
     });
   });
