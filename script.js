@@ -254,8 +254,11 @@ function generateEmbedHTML(url, thumbnail) {
   if (cleanUrl.includes('threads.net') || cleanUrl.includes('threads.com')) {
     const proxyUrl = `embed_proxy.html?type=threads&url=${encodeURIComponent(cleanUrl)}`;
     const uid = 'th_' + Math.random().toString(36).substr(2, 8);
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    const lazyLoad = isIOS && thumbnail; // iOS with thumbnail: tap to load
+    // 強制比對包含 iOS 相關字眼，擴大涵蓋 LINE, FB in-app browser
+    const isIOS = /iPad|iPhone|iPod|iOS/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    
+    // iOS 無論有沒有縮圖，一律先擋下要求點擊 (lazyLoad)
+    const lazyLoad = isIOS;
 
     const thumbStyle = thumbnail
       ? `background-image: url('${thumbnail}'); background-size: cover; background-position: center;`
@@ -270,8 +273,8 @@ function generateEmbedHTML(url, thumbnail) {
     return `
       <div class="embed-wrapper" id="${uid}">
         <div class="embed-placeholder threads" style="${thumbStyle} ${placeholderCursor}" ${placeholderClick}>
-          ${thumbnail ? '<div class="embed-placeholder__play">▶</div>' : '<div class="embed-placeholder__icon">🧵</div><div class="embed-placeholder__spinner"></div>'}
-          <div class="embed-placeholder__label">${thumbnail ? '' : 'Threads 貼文載入中...'}</div>
+          ${lazyLoad ? '<div class="embed-placeholder__play">▶</div>' : '<div class="embed-placeholder__icon">🧵</div><div class="embed-placeholder__spinner"></div>'}
+          <div class="embed-placeholder__label">${lazyLoad && !thumbnail ? '點擊載入 Threads' : (lazyLoad ? '' : 'Threads 貼文載入中...')}</div>
         </div>
         <iframe ${iframeSrc ? `src="${iframeSrc}"` : `data-src="${proxyUrl}"`} class="embed-iframe threads-embed" data-post-url="${cleanUrl}"
           frameborder="0" scrolling="auto" allowtransparency="true" allowfullscreen
