@@ -394,6 +394,10 @@ body {
   background: linear-gradient(145deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
 }
 
+.embed-placeholder.instagram {
+  background: linear-gradient(145deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%);
+}
+
 .embed-placeholder__icon {
   font-size: 2.4rem;
 }
