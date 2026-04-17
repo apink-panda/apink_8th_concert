@@ -50,6 +50,7 @@ const $reviewStatusText = document.getElementById('review-status-text');
 const $pendingList = document.getElementById('pending-list');
 const $toastContainer = document.getElementById('toast-container');
 const $loadMoreBtn = document.getElementById('load-more-btn');
+const $scrollSentinel = document.getElementById('scroll-sentinel');
 
 // ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', () => {
@@ -57,14 +58,27 @@ document.addEventListener('DOMContentLoaded', () => {
   initAddModal();
   initEmbedResizeListener();
   initAdmin();
-
-  if ($loadMoreBtn) {
-    $loadMoreBtn.addEventListener('click', handleLoadMore);
-  }
+  initInfiniteScroll();
 
   loadAllData();
   startRefreshTimer();
 });
+
+function initInfiniteScroll() {
+  if (!$scrollSentinel) return;
+  const observer = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && !isLoading) {
+      const videos = currentFilter === '全部'
+        ? globalData
+        : globalData.filter(v => v.sheet === currentFilter);
+      if (currentPage * ITEMS_PER_PAGE < videos.length) {
+        currentPage++;
+        renderCards(true);
+      }
+    }
+  }, { rootMargin: '200px' });
+  observer.observe($scrollSentinel);
+}
 
 function handleLoadMore() {
   currentPage++;
@@ -189,23 +203,15 @@ function renderCards(append = false) {
   const toRender = videos.slice(startIndex, endIndex);
 
   toRender.forEach((video, index) => {
-    const actualIndex = startIndex + index;
-    const isLast = index === toRender.length - 1;
-
-    setTimeout(() => {
-      // If user switched tabs/loaded more since this was queued, abort
-      if (renderGeneration !== thisGeneration) return;
-
-      const card = createVideoCard(video, actualIndex);
-      $grid.appendChild(card);
-
-      if (isLast) {
-        if ($loadMoreBtn) {
-          $loadMoreBtn.style.display = videos.length > endIndex ? 'block' : 'none';
-        }
-      }
-    }, index * 300);
+    if (renderGeneration !== thisGeneration) return;
+    const card = createVideoCard(video, startIndex + index);
+    $grid.appendChild(card);
   });
+
+  // 更新哨兵可見性（還有更多則顯示 load-more-btn）
+  if ($loadMoreBtn) {
+    $loadMoreBtn.style.display = videos.length > endIndex ? 'block' : 'none';
+  }
 }
 
 function createVideoCard(video, index) {
