@@ -7,7 +7,7 @@
 // ===== CONFIGURATION =====
 // 🔧 把你的 Google Apps Script Web App URL 貼在這裡
 const MEMBERS = ['初瓏', '普美', '恩地', '南珠', '夏榮', '團體'];
-const API_URL = 'https://script.google.com/macros/s/AKfycbwuAM82rPb7w9LnqHEWVGV087169H93SivXoNYmrio0ZgHvspgjH78hSJTRT1_DME0/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxYwPMpFHO5I-Sw0TPzfVmBVpwaLtDvG1MA_1vnvbldf73K1XXVKrJgXm4bQbLtvpgj/exec';
 const REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 分鐘
 const LIKE_DEBOUNCE_MS = 800; // 推坑 debounce
 
