@@ -83,41 +83,6 @@ function handleLoadMore() {
   renderCards(true);
 }
 
-// ===== AUTO-PAUSE OUT-OF-VIEW IFRAMES =====
-// 由於 iframe 跨域無法直接控制播放器，改用「清空 src 強制卸載」方式達到暫停效果
-let pauseObserver = null;
-function getPauseObserver() {
-  if (pauseObserver) return pauseObserver;
-  pauseObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      const iframe = entry.target;
-      if (!entry.isIntersecting) {
-        // 滑出畫面：若目前有 src 就備份並清空（強制暫停播放）
-        const currentSrc = iframe.getAttribute('src');
-        if (currentSrc && currentSrc !== 'about:blank') {
-          iframe.dataset.savedSrc = currentSrc;
-          iframe.src = 'about:blank';
-        }
-      } else {
-        // 滑回畫面：還原 src 讓貼文重新載入
-        const saved = iframe.dataset.savedSrc;
-        if (saved && iframe.getAttribute('src') === 'about:blank') {
-          iframe.src = saved;
-          // 重置 opacity，等待 embed_proxy 重新 postMessage 高度
-          iframe.style.opacity = '0';
-          const placeholder = iframe.parentElement?.querySelector('.embed-placeholder');
-          if (placeholder) placeholder.style.display = '';
-        }
-      }
-    });
-  }, { threshold: 0, rootMargin: '100px 0px' });
-  return pauseObserver;
-}
-
-function observeIframeForPause(iframe) {
-  getPauseObserver().observe(iframe);
-}
-
 // ===== TABS =====
 function initTabs() {
   const tabBtns = $tabs.querySelectorAll('.tab');
@@ -240,8 +205,6 @@ function renderCards(append = false) {
     if (renderGeneration !== thisGeneration) return;
     const card = createVideoCard(video, startIndex + index);
     $grid.appendChild(card);
-    // 觀察 iframe 可見性，滑出畫面自動暫停
-    card.querySelectorAll('.embed-iframe').forEach(observeIframeForPause);
   });
 
   // 更新哨兵可見性（還有更多則顯示 load-more-btn）
