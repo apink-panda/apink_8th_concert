@@ -37,7 +37,16 @@
   }
 
   let lastHeight = 0;
-  const playbackStateKey = `apink_video_playback_${type}_${encodeURIComponent(postUrl)}`;
+  function hashString(input) {
+    let hash = 2166136261;
+    for (let i = 0; i < input.length; i++) {
+      hash ^= input.charCodeAt(i);
+      hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+    }
+    return (hash >>> 0).toString(36);
+  }
+
+  const playbackStateKey = `apink_video_playback_${type}_${hashString(postUrl)}`;
   const knownVideos = new WeakSet();
 
   function setPlaybackPaused(paused) {
@@ -67,7 +76,11 @@
     videos.forEach(video => {
       bindVideoEvents(video);
       if (isPlaybackPaused() && !video.paused) {
-        try { video.pause(); } catch (e) { }
+        try {
+          video.pause();
+        } catch (e) {
+          console.debug('sync pause failed:', e);
+        }
       }
     });
   }
