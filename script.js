@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initAdmin();
   initInfiniteScroll();
   initExclusivePlayback();
+  initOutOfViewAutoPause();
 
   loadAllData();
   startRefreshTimer();
@@ -111,6 +112,42 @@ function initExclusivePlayback() {
       });
     }, 0);
   });
+}
+
+function initOutOfViewAutoPause() {
+  if (!('IntersectionObserver' in window) || !$grid) return;
+
+  const pauseIframePlayback = (iframe) => {
+    if (!iframe || iframe.tagName !== 'IFRAME' || !iframe.classList.contains('embed-iframe')) return;
+    try {
+      if (iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ type: 'pause-embed-video' }, window.location.origin);
+      }
+    } catch (e) { }
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) {
+        pauseIframePlayback(entry.target);
+      }
+    });
+  }, { threshold: 0 });
+
+  const observed = new WeakSet();
+  const observeIframes = () => {
+    document.querySelectorAll('.embed-iframe').forEach(iframe => {
+      if (!observed.has(iframe)) {
+        observed.add(iframe);
+        observer.observe(iframe);
+      }
+    });
+  };
+
+  const mo = new MutationObserver(() => observeIframes());
+  mo.observe($grid, { childList: true, subtree: true });
+
+  observeIframes();
 }
 
 // ===== TABS =====

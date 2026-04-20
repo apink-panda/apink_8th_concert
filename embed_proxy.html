@@ -69,6 +69,14 @@
     });
   }
 
+  function pauseOwnVideos() {
+    document.querySelectorAll('video').forEach(v => {
+      if (!v.paused) {
+        try { v.pause(); } catch (e) { }
+      }
+    });
+  }
+
   function bindVideoEvents(video) {
     if (!video || knownVideos.has(video)) return;
     knownVideos.add(video);
@@ -85,6 +93,13 @@
   // 跨頁籤/iframe 監聽 storage 事件（同 origin 的不同 iframe 之間會觸發）
   window.addEventListener('storage', (e) => {
     if (e.key === NOW_PLAYING_KEY) pauseOwnVideosIfNotActive();
+  });
+
+  window.addEventListener('message', (e) => {
+    if (e.origin !== window.location.origin) return;
+    if (e.data?.type === 'pause-embed-video') {
+      pauseOwnVideos();
+    }
   });
 
   function reportHeight() {
