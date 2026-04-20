@@ -38,69 +38,6 @@
 
   let lastHeight = 0;
 
-  // ===== 跨 iframe 互斥播放 =====
-  // 每個 iframe 有唯一 ID，所有 iframe 透過共用的 localStorage key 同步「目前誰在播放」
-  // 當其他 iframe 開始播放時，自己的影片會自動被暫停
-  const NOW_PLAYING_KEY = 'apink_now_playing';
-  const myId = Math.random().toString(36).slice(2) + Date.now().toString(36);
-  const knownVideos = new WeakSet();
-
-  function setNowPlaying() {
-    try {
-      localStorage.setItem(NOW_PLAYING_KEY, myId);
-    } catch (e) { }
-  }
-
-  function getNowPlaying() {
-    try {
-      return localStorage.getItem(NOW_PLAYING_KEY) || '';
-    } catch (e) {
-      return '';
-    }
-  }
-
-  function pauseOwnVideosIfNotActive() {
-    const active = getNowPlaying();
-    if (!active || active === myId) return;
-    document.querySelectorAll('video').forEach(v => {
-      if (!v.paused) {
-        try { v.pause(); } catch (e) { }
-      }
-    });
-  }
-
-  function pauseOwnVideos() {
-    document.querySelectorAll('video').forEach(v => {
-      if (!v.paused) {
-        try { v.pause(); } catch (e) { }
-      }
-    });
-  }
-
-  function bindVideoEvents(video) {
-    if (!video || knownVideos.has(video)) return;
-    knownVideos.add(video);
-    // 本 iframe 開始播放 → 宣告自己是 now playing（其他 iframe 下次 poll 會暫停）
-    video.addEventListener('play', setNowPlaying);
-    video.addEventListener('playing', setNowPlaying);
-  }
-
-  function syncPlaybackStateToVideos() {
-    document.querySelectorAll('video').forEach(bindVideoEvents);
-    pauseOwnVideosIfNotActive();
-  }
-
-  // 跨頁籤/iframe 監聽 storage 事件（同 origin 的不同 iframe 之間會觸發）
-  window.addEventListener('storage', (e) => {
-    if (e.key === NOW_PLAYING_KEY) pauseOwnVideosIfNotActive();
-  });
-
-  window.addEventListener('message', (e) => {
-    if (e.origin !== window.location.origin) return;
-    if (e.data?.type === 'pause-embed-video') {
-      pauseOwnVideos();
-    }
-  });
 
   function reportHeight() {
     // Check body, root, and any nested iframes created by embed.js
@@ -128,7 +65,6 @@
       }, '*');
     }
 
-    syncPlaybackStateToVideos();
   }
 
   // Poll for height changes (covers all cases including slow embed rendering)
@@ -143,7 +79,6 @@
 
   // Also use MutationObserver to catch embed.js creating new elements
   const mo = new MutationObserver(() => {
-    syncPlaybackStateToVideos();
     reportHeight();
   });
   mo.observe(root, { childList: true, subtree: true, attributes: true });
