@@ -37,6 +37,54 @@
   }
 
   let lastHeight = 0;
+  // Deterministic short key for each embed URL to avoid overly long localStorage keys.
+  function hashString(input) {
+    let hash = 2166136261;
+    for (let i = 0; i < input.length; i++) {
+      hash ^= input.charCodeAt(i);
+      hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+    }
+    return (hash >>> 0).toString(36);
+  }
+
+  const embedPlaybackKey = `apink_video_playback_${type}_${hashString(postUrl)}`;
+  const knownVideos = new WeakSet();
+
+  function setPlaybackPaused(paused) {
+    try {
+      localStorage.setItem(embedPlaybackKey, paused ? 'paused' : 'playing');
+    } catch (e) { }
+  }
+
+  function isPlaybackPaused() {
+    try {
+      return localStorage.getItem(embedPlaybackKey) === 'paused';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function bindVideoEvents(video) {
+    if (!video || knownVideos.has(video)) return;
+    knownVideos.add(video);
+
+    video.addEventListener('pause', () => setPlaybackPaused(true));
+    video.addEventListener('play', () => setPlaybackPaused(false));
+  }
+
+  function syncPlaybackStateToVideos() {
+    const videos = document.querySelectorAll('video');
+    videos.forEach(video => {
+      bindVideoEvents(video);
+      if (isPlaybackPaused() && !video.paused) {
+        try {
+          video.pause();
+        } catch (e) {
+          console.debug('sync pause failed:', e);
+        }
+      }
+    });
+  }
 
   function reportHeight() {
     // Check body, root, and any nested iframes created by embed.js
@@ -63,6 +111,8 @@
         url: postUrl
       }, '*');
     }
+
+    syncPlaybackStateToVideos();
   }
 
   // Poll for height changes (covers all cases including slow embed rendering)
@@ -76,7 +126,10 @@
   }
 
   // Also use MutationObserver to catch embed.js creating new elements
-  const mo = new MutationObserver(reportHeight);
+  const mo = new MutationObserver(() => {
+    syncPlaybackStateToVideos();
+    reportHeight();
+  });
   mo.observe(root, { childList: true, subtree: true, attributes: true });
 
   // Report on load + delayed checks for slow embeds
