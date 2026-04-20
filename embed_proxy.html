@@ -37,6 +37,40 @@
   }
 
   let lastHeight = 0;
+  const playbackStateKey = `apink_video_playback_${type}_${encodeURIComponent(postUrl)}`;
+  const knownVideos = new WeakSet();
+
+  function setPlaybackPaused(paused) {
+    try {
+      localStorage.setItem(playbackStateKey, paused ? 'paused' : 'playing');
+    } catch (e) { }
+  }
+
+  function isPlaybackPaused() {
+    try {
+      return localStorage.getItem(playbackStateKey) === 'paused';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function bindVideoEvents(video) {
+    if (!video || knownVideos.has(video)) return;
+    knownVideos.add(video);
+
+    video.addEventListener('pause', () => setPlaybackPaused(true));
+    video.addEventListener('play', () => setPlaybackPaused(false));
+  }
+
+  function syncPlaybackStateToVideos() {
+    const videos = document.querySelectorAll('video');
+    videos.forEach(video => {
+      bindVideoEvents(video);
+      if (isPlaybackPaused() && !video.paused) {
+        try { video.pause(); } catch (e) { }
+      }
+    });
+  }
 
   function reportHeight() {
     // Check body, root, and any nested iframes created by embed.js
@@ -63,6 +97,8 @@
         url: postUrl
       }, '*');
     }
+
+    syncPlaybackStateToVideos();
   }
 
   // Poll for height changes (covers all cases including slow embed rendering)
@@ -76,7 +112,10 @@
   }
 
   // Also use MutationObserver to catch embed.js creating new elements
-  const mo = new MutationObserver(reportHeight);
+  const mo = new MutationObserver(() => {
+    syncPlaybackStateToVideos();
+    reportHeight();
+  });
   mo.observe(root, { childList: true, subtree: true, attributes: true });
 
   // Report on load + delayed checks for slow embeds
