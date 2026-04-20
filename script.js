@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initEmbedResizeListener();
   initAdmin();
   initInfiniteScroll();
+  initExclusivePlayback();
 
   loadAllData();
   startRefreshTimer();
@@ -81,6 +82,35 @@ function initInfiniteScroll() {
 function handleLoadMore() {
   currentPage++;
   renderCards(true);
+}
+
+// ===== 互斥播放：點擊某個 iframe 時重置其他 iframe 讓它們停止播放 =====
+// 由於 Threads/IG 的 <video> 在跨域 nested iframe，無法直接 pause
+// 改用：偵測「使用者點擊了哪個 iframe」→ 重置其他 iframe 的 src 強制停止
+function initExclusivePlayback() {
+  let lastActive = null;
+  window.addEventListener('blur', () => {
+    // iframe 被點擊會導致父視窗 blur，此時 document.activeElement 就是被點擊的 iframe
+    setTimeout(() => {
+      const el = document.activeElement;
+      if (!el || el.tagName !== 'IFRAME' || !el.classList.contains('embed-iframe')) return;
+      if (el === lastActive) return;
+      lastActive = el;
+      // 重置其他 embed-iframe 的 src，強制停止播放
+      document.querySelectorAll('.embed-iframe').forEach(iframe => {
+        if (iframe === el) return;
+        const src = iframe.getAttribute('src');
+        if (src && src !== 'about:blank') {
+          // 先設成 about:blank 再還原，確保真的停止
+          iframe.src = 'about:blank';
+          setTimeout(() => { iframe.src = src; }, 30);
+          iframe.style.opacity = '0';
+          const placeholder = iframe.parentElement?.querySelector('.embed-placeholder');
+          if (placeholder) placeholder.style.display = '';
+        }
+      });
+    }, 0);
+  });
 }
 
 // ===== TABS =====
