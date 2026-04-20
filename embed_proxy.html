@@ -37,54 +37,55 @@
   }
 
   let lastHeight = 0;
-  // Deterministic short key for each embed URL to avoid overly long localStorage keys.
-  function hashString(input) {
-    let hash = 2166136261;
-    for (let i = 0; i < input.length; i++) {
-      hash ^= input.charCodeAt(i);
-      hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
-    }
-    return (hash >>> 0).toString(36);
-  }
 
-  const embedPlaybackKey = `apink_video_playback_${type}_${hashString(postUrl)}`;
+  // ===== 跨 iframe 互斥播放 =====
+  // 每個 iframe 有唯一 ID，所有 iframe 透過共用的 localStorage key 同步「目前誰在播放」
+  // 當其他 iframe 開始播放時，自己的影片會自動被暫停
+  const NOW_PLAYING_KEY = 'apink_now_playing';
+  const myId = Math.random().toString(36).slice(2) + Date.now().toString(36);
   const knownVideos = new WeakSet();
 
-  function setPlaybackPaused(paused) {
+  function setNowPlaying() {
     try {
-      localStorage.setItem(embedPlaybackKey, paused ? 'paused' : 'playing');
+      localStorage.setItem(NOW_PLAYING_KEY, myId);
     } catch (e) { }
   }
 
-  function isPlaybackPaused() {
+  function getNowPlaying() {
     try {
-      return localStorage.getItem(embedPlaybackKey) === 'paused';
+      return localStorage.getItem(NOW_PLAYING_KEY) || '';
     } catch (e) {
-      return false;
+      return '';
     }
+  }
+
+  function pauseOwnVideosIfNotActive() {
+    const active = getNowPlaying();
+    if (!active || active === myId) return;
+    document.querySelectorAll('video').forEach(v => {
+      if (!v.paused) {
+        try { v.pause(); } catch (e) { }
+      }
+    });
   }
 
   function bindVideoEvents(video) {
     if (!video || knownVideos.has(video)) return;
     knownVideos.add(video);
-
-    video.addEventListener('pause', () => setPlaybackPaused(true));
-    video.addEventListener('play', () => setPlaybackPaused(false));
+    // 本 iframe 開始播放 → 宣告自己是 now playing（其他 iframe 下次 poll 會暫停）
+    video.addEventListener('play', setNowPlaying);
+    video.addEventListener('playing', setNowPlaying);
   }
 
   function syncPlaybackStateToVideos() {
-    const videos = document.querySelectorAll('video');
-    videos.forEach(video => {
-      bindVideoEvents(video);
-      if (isPlaybackPaused() && !video.paused) {
-        try {
-          video.pause();
-        } catch (e) {
-          console.debug('sync pause failed:', e);
-        }
-      }
-    });
+    document.querySelectorAll('video').forEach(bindVideoEvents);
+    pauseOwnVideosIfNotActive();
   }
+
+  // 跨頁籤/iframe 監聽 storage 事件（同 origin 的不同 iframe 之間會觸發）
+  window.addEventListener('storage', (e) => {
+    if (e.key === NOW_PLAYING_KEY) pauseOwnVideosIfNotActive();
+  });
 
   function reportHeight() {
     // Check body, root, and any nested iframes created by embed.js
