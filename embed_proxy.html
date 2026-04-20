@@ -37,6 +37,7 @@
   }
 
   let lastHeight = 0;
+  // Deterministic short key for each embed URL to avoid overly long localStorage keys.
   function hashString(input) {
     let hash = 2166136261;
     for (let i = 0; i < input.length; i++) {
@@ -46,18 +47,18 @@
     return (hash >>> 0).toString(36);
   }
 
-  const playbackStateKey = `apink_video_playback_${type}_${hashString(postUrl)}`;
+  const embedPlaybackKey = `apink_video_playback_${type}_${hashString(postUrl)}`;
   const knownVideos = new WeakSet();
 
   function setPlaybackPaused(paused) {
     try {
-      localStorage.setItem(playbackStateKey, paused ? 'paused' : 'playing');
+      localStorage.setItem(embedPlaybackKey, paused ? 'paused' : 'playing');
     } catch (e) { }
   }
 
   function isPlaybackPaused() {
     try {
-      return localStorage.getItem(playbackStateKey) === 'paused';
+      return localStorage.getItem(embedPlaybackKey) === 'paused';
     } catch (e) {
       return false;
     }
