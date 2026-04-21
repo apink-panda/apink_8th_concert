@@ -13,7 +13,7 @@ const LIKE_DEBOUNCE_MS = 800; // 推坑 debounce
 
 // ===== STATE =====
 let globalData = [];
-let currentFilter = '全部';
+let currentFilter = '初瓏';
 
 let isLoading = false;
 let adminPassword = '';
