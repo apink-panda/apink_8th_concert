@@ -155,10 +155,8 @@ async function loadAllData() {
 
 // ===== SORTING =====
 function sortVideos(videos) {
-  // 先依推坑指數排序（高→低），再依提交時間排序（新→舊）
+  // 依提交時間排序（新→舊），最新的貼文排在最上方
   return [...videos].sort((a, b) => {
-    const likesDiff = (b.likes || 0) - (a.likes || 0);
-    if (likesDiff !== 0) return likesDiff;
     return new Date(b.created_at) - new Date(a.created_at);
   });
 }
@@ -770,7 +768,7 @@ function startRefreshTimer() {
 function updateCountdownDisplay() {
   const min = Math.floor(countdownSeconds / 60);
   const sec = countdownSeconds % 60;
-  $refreshCountdown.textContent = `${min}:${sec.toString().padStart(2, '0')} 後更新排序`;
+  $refreshCountdown.textContent = `${min}:${sec.toString().padStart(2, '0')} 後更新`;
 }
 
 // ===== TOAST =====
