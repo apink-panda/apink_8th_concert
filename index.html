@@ -15,7 +15,7 @@
   <link rel="canonical" href="https://apink-panda.github.io/apink_8th_concert/">
   <link rel="icon"
     href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🩷</text></svg>">
-  <link rel="stylesheet" href="style.css?v=60">
+  <link rel="stylesheet" href="style.css?v=61">
 </head>
 
 <body>
@@ -28,6 +28,8 @@
     <h1 class="header__logo">The Origin : APINK</h1>
     <p class="header__subtitle">제8회 팬캠 컬렉션</p>
     <p class="header__concert">第八次巡迴演唱會 ✦ Fancam 推坑集</p>
+    <p class="header__concert">iOS裝置因為Thread限制無法預覽影片，可點擊直接播放</p>
+
   </header>
 
   <!-- Stats Bar -->
@@ -79,14 +81,7 @@
     <div id="scroll-sentinel" style="height: 1px;"></div>
   </main>
 
-  <footer style="display: flex; justify-content: center; padding: 20px 0 40px;">
-    <div class="stat-item">
-      <div class="refresh-timer">
-        <span class="refresh-timer__dot"></span>
-        <span id="refresh-countdown">10:00 後更新</span>
-      </div>
-    </div>
-  </footer>
+
 
   <!-- Add Video Modal -->
   <div class="modal-overlay" id="add-modal">
@@ -124,8 +119,21 @@
       </div>
 
       <div class="form-group">
-        <label for="add-nickname">暱稱（可不填）</label>
-        <input type="text" id="add-nickname" placeholder="匿名" maxlength="30" autocomplete="off">
+        <label for="add-tag">標籤（可不填）</label>
+        <select id="add-tag">
+          <option value="">不選擇</option>
+          <option value="推坑">推坑</option>
+          <option value="必看">必看</option>
+          <option value="名場面">名場面</option>
+          <option value="應援">應援</option>
+          <option value="舞台">舞台</option>
+          <option value="搞笑">搞笑</option>
+          <option value="感人">感人</option>
+          <option value="其他">其他</option>
+          <option value="__custom__">自訂...</option>
+        </select>
+        <input type="text" id="add-tag-custom" placeholder="輸入自訂標籤" maxlength="10" autocomplete="off"
+          style="display: none; margin-top: 8px;">
       </div>
 
       <button class="btn-primary" id="add-submit">提交影片</button>
@@ -165,7 +173,7 @@
   <!-- Toast Container -->
   <div class="toast-container" id="toast-container"></div>
 
-  <script src="script.js?v=60"></script>
+  <script src="script.js?v=61"></script>
 </body>
 
 </html>

@@ -8,8 +8,7 @@
 // 🔧 把你的 Google Apps Script Web App URL 貼在這裡
 const MEMBERS = ['初瓏', '普美', '恩地', '南珠', '夏榮', '團體'];
 const API_URL = 'https://script.google.com/macros/s/AKfycbxYwPMpFHO5I-Sw0TPzfVmBVpwaLtDvG1MA_1vnvbldf73K1XXVKrJgXm4bQbLtvpgj/exec';
-const REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 分鐘
-const LIKE_DEBOUNCE_MS = 800; // 推坑 debounce
+
 
 // ===== STATE =====
 let globalData = [];
@@ -18,9 +17,7 @@ let currentFilter = '初瓏';
 let isLoading = false;
 let adminPassword = '';
 let isAdminLoggedIn = false;
-let refreshTimer = null;
-let countdownSeconds = 600; // 10 min
-let likeQueues = {}; // { `${sheet}_${id}`: { count, timeout } }
+
 let currentPage = 1;
 const ITEMS_PER_PAGE = 5;
 let renderGeneration = 0; // incremented each render to cancel stale staggered appends
@@ -29,14 +26,15 @@ let renderGeneration = 0; // incremented each render to cancel stale staggered a
 const $grid = document.getElementById('card-grid');
 const $loading = document.getElementById('loading');
 const $totalCount = document.getElementById('total-count');
-const $refreshCountdown = document.getElementById('refresh-countdown');
+
 const $tabs = document.getElementById('tabs');
 const $addModal = document.getElementById('add-modal');
 const $addBtn = document.getElementById('add-btn');
 const $addModalClose = document.getElementById('add-modal-close');
 const $addSheet = document.getElementById('add-sheet');
 const $addUrl = document.getElementById('add-url');
-const $addNickname = document.getElementById('add-nickname');
+const $addTag = document.getElementById('add-tag');
+const $addTagCustom = document.getElementById('add-tag-custom');
 const $addSubmit = document.getElementById('add-submit');
 const $adminTrigger = document.getElementById('admin-trigger');
 const $adminLoginModal = document.getElementById('admin-login-modal');
@@ -59,7 +57,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initInfiniteScroll();
 
   loadAllData();
-  startRefreshTimer();
 });
 
 function initInfiniteScroll() {
@@ -209,6 +206,9 @@ function renderCards(append = false) {
   if ($loadMoreBtn) {
     $loadMoreBtn.style.display = videos.length > endIndex ? 'block' : 'none';
   }
+
+  // Schedule check to hide cards with failed embeds
+  scheduleEmbedFailCheck();
 }
 
 function createVideoCard(video, index) {
@@ -221,6 +221,11 @@ function createVideoCard(video, index) {
   const timeAgo = formatTimeAgo(video.created_at);
   const pendingBadge = video.status === 'pending' ? '<span class="video-card__pending-badge">待審核</span>' : '';
 
+  // Build tag badge HTML
+  const tagBadge = video.submitted_by && video.submitted_by !== '匿名'
+    ? `<span class="video-card__tag">${escapeHtml(video.submitted_by)}</span>`
+    : '';
+
   card.innerHTML = `
     <div class="video-card__embed">
       ${embedContent}
@@ -228,18 +233,13 @@ function createVideoCard(video, index) {
     <div class="video-card__footer">
       <div class="video-card__info">
         <div class="video-card__author">
-          <span style="font-weight: 800; color: var(--pink-start); margin-right: 6px; font-size: 1.1rem; font-style: italic;" class="rank-num">#${index + 1}</span>
           <span style="font-size: 0.8rem; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; margin-right: 6px;">${escapeHtml(video.sheet)}</span>
           ${pendingBadge}
-          📎 ${escapeHtml(video.submitted_by || '匿名')}
+          ${tagBadge}
         </div>
         <div class="video-card__time">${timeAgo}</div>
       </div>
       <div class="video-card__actions">
-        <button class="like-btn" data-id="${video.id}" data-sheet="${video.sheet}" onclick="handleLike(this)">
-          <span class="like-btn__icon">❤️</span>
-          <span class="like-btn__count">${video.likes || 0}</span>
-        </button>
         <button class="report-btn" data-id="${video.id}" data-sheet="${video.sheet}" onclick="handleReport(this)" title="檢舉不當內容">🚩</button>
       </div>
     </div>
@@ -321,6 +321,9 @@ function initEmbedResizeListener() {
           if (iframe.contentWindow === event.source) {
             iframe.style.height = data.height + 'px';
 
+            // Mark this embed as successfully loaded
+            iframe.dataset.embedLoaded = 'true';
+
             // Show the iframe and hide the placeholder (content is now rendered)
             if (iframe.style.opacity === '0') {
               iframe.style.opacity = '1';
@@ -334,76 +337,23 @@ function initEmbedResizeListener() {
   });
 }
 
-// ===== LIKE / 推坑 =====
-function handleLike(btn) {
-  const id = btn.dataset.id;
-  const sheet = btn.dataset.sheet;
-  const key = `${sheet}_${id}`;
-
-  // Trigger heartbeat animation
-  btn.classList.add('pulse');
-  setTimeout(() => btn.classList.remove('pulse'), 350);
-
-  // Float heart particle
-  spawnFloatHeart(btn);
-
-  // Update local count immediately
-  const $count = btn.querySelector('.like-btn__count');
-  const currentCount = parseInt($count.textContent) || 0;
-  $count.textContent = currentCount + 1;
-
-  // Also update globalData
-  const video = globalData.find(v => String(v.id) === String(id));
-  if (video) {
-    video.likes = currentCount + 1;
-  }
-
-  // Debounced batch send
-  if (!likeQueues[key]) {
-    likeQueues[key] = { count: 0, timeout: null };
-  }
-
-  likeQueues[key].count += 1;
-
-  if (likeQueues[key].timeout) {
-    clearTimeout(likeQueues[key].timeout);
-  }
-
-  likeQueues[key].timeout = setTimeout(() => {
-    sendLike(sheet, id, likeQueues[key].count);
-    likeQueues[key].count = 0;
-  }, LIKE_DEBOUNCE_MS);
-}
-
-function spawnFloatHeart(btn) {
-  const rect = btn.getBoundingClientRect();
-  const heart = document.createElement('div');
-  heart.className = 'float-heart';
-  heart.textContent = '❤️';
-  heart.style.left = `${rect.left + rect.width / 2 - 10 + (Math.random() * 20 - 10)}px`;
-  heart.style.top = `${rect.top - 10}px`;
-  document.body.appendChild(heart);
-
-  setTimeout(() => heart.remove(), 1000);
-}
-
-async function sendLike(sheet, id, count) {
-  try {
-    await fetch(API_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'like',
-        sheet: sheet,
-        id: id,
-        count: count
-      })
+// Hide cards whose embeds failed to load after a timeout
+function scheduleEmbedFailCheck() {
+  setTimeout(() => {
+    const iframes = document.querySelectorAll('.embed-iframe');
+    iframes.forEach(iframe => {
+      if (iframe.dataset.embedLoaded !== 'true') {
+        // This embed never successfully rendered — hide the entire card
+        const card = iframe.closest('.video-card');
+        if (card) {
+          card.style.display = 'none';
+        }
+      }
     });
-  } catch (err) {
-    console.error('推坑失敗:', err);
-  }
+  }, 15000); // 15 second timeout
 }
+
+
 
 // ===== ADD VIDEO MODAL =====
 function initAddModal() {
@@ -411,7 +361,9 @@ function initAddModal() {
     // Pre-select current filter's member (if on 全部, default to 初瓏)
     $addSheet.value = (currentFilter !== '全部') ? currentFilter : '初瓏';
     $addUrl.value = '';
-    $addNickname.value = '';
+    $addTag.value = '';
+    $addTagCustom.value = '';
+    $addTagCustom.style.display = 'none';
     $addModal.classList.add('active');
     setTimeout(() => $addUrl.focus(), 300);
   });
@@ -426,6 +378,17 @@ function initAddModal() {
 
   $addSubmit.addEventListener('click', handleAddSubmit);
 
+  // Toggle custom tag input visibility
+  $addTag.addEventListener('change', () => {
+    if ($addTag.value === '__custom__') {
+      $addTagCustom.style.display = 'block';
+      $addTagCustom.focus();
+    } else {
+      $addTagCustom.style.display = 'none';
+      $addTagCustom.value = '';
+    }
+  });
+
   // Enter key to submit
   $addUrl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') handleAddSubmit();
@@ -435,7 +398,7 @@ function initAddModal() {
 async function handleAddSubmit() {
   const sheet = $addSheet.value;
   const url = $addUrl.value.trim();
-  const nickname = $addNickname.value.trim();
+  const tag = $addTag.value === '__custom__' ? $addTagCustom.value.trim() : $addTag.value;
 
   if (!url) {
     showToast('請貼上影片連結', 'error');
@@ -482,7 +445,7 @@ async function handleAddSubmit() {
         action: 'add',
         sheet: sheet,
         url: url,
-        submitted_by: nickname || '匿名'
+        submitted_by: tag || '匿名'
       })
     });
 
@@ -497,7 +460,7 @@ async function handleAddSubmit() {
       url: url,
       likes: 0,
       created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      submitted_by: nickname || '匿名',
+      submitted_by: tag || '匿名',
       status: 'pending',
       sheet: sheet
     };
@@ -746,30 +709,7 @@ async function handleReject(sheet, id) {
   }
 }
 
-// ===== REFRESH TIMER =====
-function startRefreshTimer() {
-  countdownSeconds = 600;
-  updateCountdownDisplay();
 
-  if (refreshTimer) clearInterval(refreshTimer);
-
-  refreshTimer = setInterval(() => {
-    countdownSeconds--;
-
-    if (countdownSeconds <= 0) {
-      countdownSeconds = 600;
-      loadAllData();
-    }
-
-    updateCountdownDisplay();
-  }, 1000);
-}
-
-function updateCountdownDisplay() {
-  const min = Math.floor(countdownSeconds / 60);
-  const sec = countdownSeconds % 60;
-  $refreshCountdown.textContent = `${min}:${sec.toString().padStart(2, '0')} 後更新`;
-}
 
 // ===== TOAST =====
 function showToast(message, type = 'info') {

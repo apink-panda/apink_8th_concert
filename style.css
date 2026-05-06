@@ -618,6 +618,19 @@ body {
   color: var(--text-muted);
 }
 
+.video-card__tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, var(--pink-start), var(--pink-end));
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  margin-left: 4px;
+  vertical-align: middle;
+  letter-spacing: 0.5px;
+}
+
 .video-card__rank {
   position: absolute;
   top: var(--spacing-sm);
