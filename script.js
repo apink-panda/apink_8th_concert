@@ -53,6 +53,7 @@ const $scrollSentinel = document.getElementById('scroll-sentinel');
 // ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', () => {
   initTabs();
+  initTabScroll();
   initAddModal();
   initEmbedResizeListener();
   initAdmin();
@@ -60,6 +61,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadAllData();
 });
+
+function initTabScroll() {
+  const $tabsContainer = document.querySelector('.tabs-container');
+  const $tabsInner = $tabs;
+  if (!$tabsInner || !$tabsContainer) return;
+
+  function checkScrollEnd() {
+    const atEnd = $tabsInner.scrollLeft + $tabsInner.clientWidth >= $tabsInner.scrollWidth - 5;
+    $tabsContainer.classList.toggle('scrolled-end', atEnd);
+  }
+
+  $tabsInner.addEventListener('scroll', checkScrollEnd, { passive: true });
+  // Check on load
+  checkScrollEnd();
+}
 
 function initInfiniteScroll() {
   if (!$scrollSentinel) return;
@@ -92,6 +108,7 @@ function initTabs() {
 
       tabBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
       currentFilter = sheet;
       currentPage = 1;
       window.scrollTo({ top: 0, behavior: 'smooth' });

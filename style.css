@@ -199,6 +199,24 @@ body {
   padding: var(--spacing-sm) 0;
 }
 
+.tabs-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 40px;
+  background: linear-gradient(to right, transparent, rgba(10, 10, 18, 0.9));
+  pointer-events: none;
+  z-index: 2;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.tabs-container.scrolled-end::after {
+  opacity: 0;
+}
+
 .tabs {
   display: flex;
   align-items: center;
