@@ -7,11 +7,12 @@
 // ===== CONFIGURATION =====
 // 🔧 把你的 Google Apps Script Web App URL 貼在這裡
 const MEMBERS = ['初瓏', '普美', '恩地', '南珠', '夏榮', '團體'];
-const API_URL = 'https://script.google.com/macros/s/AKfycbxYwPMpFHO5I-Sw0TPzfVmBVpwaLtDvG1MA_1vnvbldf73K1XXVKrJgXm4bQbLtvpgj/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxBB38ozDVXbT7OL3PvVwiRbp2SYxtIeyFqgJlfjzxQy9rPB_Hofx6_xxnyoLMlmcyK/exec';
 
 
 // ===== STATE =====
 let globalData = [];
+let concertFancamData = [];
 let currentFilter = '初瓏';
 
 let isLoading = false;
@@ -26,6 +27,7 @@ let renderGeneration = 0; // incremented each render to cancel stale staggered a
 const $grid = document.getElementById('card-grid');
 const $loading = document.getElementById('loading');
 const $totalCount = document.getElementById('total-count');
+const $concertContainer = document.getElementById('concert-fancam-container');
 
 const $tabs = document.getElementById('tabs');
 const $addModal = document.getElementById('add-modal');
@@ -93,7 +95,21 @@ function initTabs() {
       currentFilter = sheet;
       currentPage = 1;
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      renderCards();
+
+      if (sheet === '演唱會飯拍') {
+        // Switch to concert fancam view
+        $grid.style.display = 'none';
+        if ($loadMoreBtn) $loadMoreBtn.style.display = 'none';
+        $addBtn.style.display = 'none';
+        $concertContainer.style.display = 'block';
+        renderConcertFancam();
+      } else {
+        // Switch back to normal card view
+        $grid.style.display = '';
+        $addBtn.style.display = '';
+        $concertContainer.style.display = 'none';
+        renderCards();
+      }
     });
   });
 }
@@ -110,6 +126,10 @@ function updateTabCounts() {
     const $count = document.getElementById(`count-${member}`);
     if ($count) $count.textContent = count;
   });
+
+  // Update concert fancam count
+  const $countConcert = document.getElementById('count-演唱會飯拍');
+  if ($countConcert) $countConcert.textContent = concertFancamData.length;
 }
 
 // ===== DATA LOADING =====
@@ -139,8 +159,19 @@ async function loadAllData() {
     });
 
     globalData = sortVideos(globalData);
+
+    // Process concert fancam data
+    if (result.data && result.data['演唱會飯拍']) {
+      concertFancamData = processConcertFancamData(result.data['演唱會飯拍'].data || []);
+    }
+
     updateTabCounts();
-    renderCards();
+
+    if (currentFilter === '演唱會飯拍') {
+      renderConcertFancam();
+    } else {
+      renderCards();
+    }
   } catch (err) {
     console.error('載入資料失敗:', err);
     showToast('載入資料失敗，請稍後再試', 'error');
@@ -301,6 +332,124 @@ function generateEmbedHTML(url) {
       <a class="link-preview__open" href="${cleanUrl}" target="_blank" rel="noopener">開啟連結 ↗</a>
     </div>
   `;
+}
+
+// ===== CONCERT FANCAM =====
+function processConcertFancamData(rawData) {
+  return rawData.map(concert => {
+    const parsed = parseConcertLabel(concert.label);
+    return { ...concert, ...parsed };
+  }).sort((a, b) => a.sortKey - b.sortKey);
+}
+
+function parseConcertLabel(label) {
+  const match = label.match(/^(\d{1,2})\/(\d{1,2})\s*(.+)$/);
+  if (match) {
+    return {
+      dateStr: `${match[1]}/${match[2]}`,
+      venue: match[3],
+      month: parseInt(match[1]),
+      day: parseInt(match[2]),
+      sortKey: parseInt(match[1]) * 100 + parseInt(match[2])
+    };
+  }
+  return { dateStr: '', venue: label, month: 0, day: 0, sortKey: 0 };
+}
+
+function extractYouTubeVideoId(url) {
+  if (!url) return null;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+  return match ? match[1] : null;
+}
+
+function isYouTubePlaylistOnly(url) {
+  return url && url.includes('playlist?list=') && !extractYouTubeVideoId(url);
+}
+
+function renderConcertFancam() {
+  $concertContainer.innerHTML = '';
+
+  if (concertFancamData.length === 0) {
+    $concertContainer.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state__icon">🎤</div>
+        <div class="empty-state__text">還沒有演唱會飯拍資料</div>
+      </div>
+    `;
+    return;
+  }
+
+  concertFancamData.forEach((concert, index) => {
+    const card = document.createElement('div');
+    card.className = 'concert-card';
+    card.style.animationDelay = `${index * 0.08}s`;
+
+    const videosHTML = concert.urls.map((url, i) => {
+      const videoId = extractYouTubeVideoId(url);
+      const isPlaylist = isYouTubePlaylistOnly(url);
+
+      if (videoId) {
+        return `
+          <a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="yt-preview" title="開啟 YouTube">
+            <img src="https://img.youtube.com/vi/${videoId}/hqdefault.jpg"
+                 alt="YouTube 預覽" class="yt-preview__img" loading="lazy">
+            <div class="yt-preview__play"></div>
+          </a>
+        `;
+      } else if (isPlaylist) {
+        return `
+          <a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="yt-preview" data-playlist-url="${escapeHtml(url)}" title="開啟 YouTube 播放清單">
+            <div class="yt-preview__playlist-loading">
+              <div class="embed-placeholder__spinner"></div>
+            </div>
+            <div class="yt-preview__play"></div>
+          </a>
+        `;
+      }
+      return '';
+    }).join('');
+
+    card.innerHTML = `
+      <div class="concert-card__header">
+        <div class="concert-card__venue">📍 ${escapeHtml(concert.venue)}</div>
+        <div class="concert-card__date">🗓 ${escapeHtml(concert.dateStr)}</div>
+      </div>
+      <div class="concert-card__videos">
+        ${videosHTML}
+      </div>
+    `;
+
+    $concertContainer.appendChild(card);
+  });
+
+  // Async fetch thumbnails for playlist-only URLs
+  loadPlaylistThumbnails();
+}
+
+async function loadPlaylistThumbnails() {
+  const playlistEls = document.querySelectorAll('[data-playlist-url]');
+  const fetches = Array.from(playlistEls).map(async (el) => {
+    const url = el.dataset.playlistUrl;
+    if (!url) return;
+    try {
+      const oembedUrl = `https://noembed.com/embed?url=${encodeURIComponent(url)}`;
+      const res = await fetch(oembedUrl);
+      const data = await res.json();
+      if (data.thumbnail_url) {
+        const loadingEl = el.querySelector('.yt-preview__playlist-loading');
+        if (loadingEl) loadingEl.remove();
+        const img = document.createElement('img');
+        img.src = data.thumbnail_url;
+        img.alt = 'YouTube 播放清單';
+        img.className = 'yt-preview__img';
+        img.loading = 'lazy';
+        el.insertBefore(img, el.firstChild);
+      }
+    } catch (e) {
+      console.warn('Failed to fetch playlist thumbnail:', e);
+    }
+  });
+  await Promise.all(fetches);
 }
 
 function processEmbeds() {

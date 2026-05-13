@@ -15,7 +15,7 @@
   <link rel="canonical" href="https://apink-panda.github.io/apink_8th_concert/">
   <link rel="icon"
     href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🩷</text></svg>">
-  <link rel="stylesheet" href="style.css?v=61">
+  <link rel="stylesheet" href="style.css?v=62">
 </head>
 
 <body>
@@ -63,6 +63,9 @@
       <button class="tab" data-sheet="團體" id="tab-團體">
         團體 <span class="tab__count" id="count-團體">0</span>
       </button>
+      <button class="tab" data-sheet="演唱會飯拍" id="tab-演唱會飯拍">
+        演唱會飯拍 <span class="tab__count" id="count-演唱會飯拍">0</span>
+      </button>
     </div>
   </nav>
 
@@ -79,6 +82,9 @@
     <button class="btn-primary" id="load-more-btn"
       style="display: none; margin: 30px auto; width: 200px; text-align: center;">載入更多影片</button>
     <div id="scroll-sentinel" style="height: 1px;"></div>
+
+    <!-- Concert Fancam Container (different layout) -->
+    <div class="concert-fancam-container" id="concert-fancam-container"></div>
   </main>
 
 
@@ -173,7 +179,7 @@
   <!-- Toast Container -->
   <div class="toast-container" id="toast-container"></div>
 
-  <script src="script.js?v=61"></script>
+  <script src="script.js?v=62"></script>
 </body>
 
 </html>
